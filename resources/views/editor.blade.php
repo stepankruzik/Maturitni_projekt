@@ -13,6 +13,16 @@
             <button id="download" class="px-4 py-2 bg-green-500 text-white rounded">Stáhnout</button>
         </div>
     </div>
+        <!-- Jas mkontrast-->
+    <div class="flex gap-4 items-center mt-4">
+            <label>Jas:</label>
+            <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0">
+            <label>Kontrast:</label>
+            <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0">
+            <label>Sytost:</label>
+            <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0">
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <script>
@@ -56,12 +66,14 @@
                 canvas.selection = false;
                 document.getElementById('toggleMode').textContent = 'Režim: Ořez';
 
+                  if (!currentImage) return;
+                  const bounds = currentImage.getBoundingRect(true);
                 // pridani crop obdelniku
                 cropRect = new fabric.Rect({
-                    left: canvas.width / 2,
-                    top: canvas.height / 2,
-                    width: canvas.width,
-                    height: canvas.height,
+                    left: bounds.left + bounds.width / 2,
+                    top: bounds.top + bounds.height / 2,
+                    width: bounds.width * 0.8,
+                    height: bounds.height * 0.8,
                     fill: 'rgba(0,0,0,0.3)',
                     originX: 'center',
                     originY: 'center',
@@ -139,5 +151,61 @@
             link.download = 'edited.png';
             link.click();
         });
+
+        // --- zoom a posun --- //
+let isDragging = false;
+let lastPosX, lastPosY;
+
+// Přibližování kolečkem myši
+canvas.on('mouse:wheel', function(opt) {
+    const delta = opt.e.deltaY;
+    let zoom = canvas.getZoom();
+    zoom *= 0.999 ** delta;
+    if (zoom > 5) zoom = 5;
+    if (zoom < 0.5) zoom = 0.5;
+    canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+    opt.e.preventDefault();
+    opt.e.stopPropagation();
+});
+
+
+canvas.on('mouse:move', function(opt) {
+    if (isDragging) {
+        const e = opt.e;
+        const vpt = canvas.viewportTransform;
+        vpt[4] += e.clientX - lastPosX;
+        vpt[5] += e.clientY - lastPosY;
+        canvas.requestRenderAll();
+        lastPosX = e.clientX;
+        lastPosY = e.clientY;
+    }
+});
+
+canvas.on('mouse:up', function(opt) {
+    isDragging = false;
+    canvas.selection = true;
+});
+
+// Jas / Kontrast / Sytost --- //
+const updateFilters = () => {
+    if (!currentImage) return;
+    const brightness = parseFloat(document.getElementById('brightness').value);
+    const contrast = parseFloat(document.getElementById('contrast').value);
+    const saturation = parseFloat(document.getElementById('saturation').value);
+
+    currentImage.filters = [
+        new fabric.Image.filters.Brightness({ brightness }),
+        new fabric.Image.filters.Contrast({ contrast }),
+        new fabric.Image.filters.Saturation({ saturation })
+    ];
+
+    currentImage.applyFilters();
+    canvas.renderAll();
+};
+
+document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
+    input.addEventListener('input', updateFilters);
+});
+
     </script>
 </x-layout>
