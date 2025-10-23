@@ -14,14 +14,34 @@
             <button id="download" class="px-4 py-2 bg-green-500 text-white rounded">Stáhnout</button>
         </div>
     </div>
-        <!-- Jas mkontrast-->
+        <!-- Jas kontrast-->
     <div class="flex gap-4 items-center mt-4">
-            <label>Jas:</label>
-            <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0">
-            <label>Kontrast:</label>
-            <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0">
-            <label>Sytost</label>
-            <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0">
+        <div class="flex items-center gap-2">
+        <label>Jas:</label>
+        <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0">
+        <span id="brightnessVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
+    </div>
+    <div class="flex items-center gap-2">
+        <label>Kontrast:</label>
+        <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0">
+        <span id="contrastVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
+    </div>
+    <div class="flex items-center gap-2">
+        <label>Sytost:</label>
+        <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0">
+        <span id="saturationVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
+    </div>
+    <div class="flex gap-4 items-center mt-2">
+    <label>Filtr:</label>
+    <select id="filterSelect">
+        <option value="none">Žádný</option>
+        <option value="sepia">Sepia</option>
+        <option value="invert">Invert</option>
+        <option value="blur">Blur</option>
+        <option value="sharpen">Sharpen</option>
+        <option value="pixelate">Pixelate</option>
+    </select>
+</div>
         </div>
     </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
@@ -220,6 +240,10 @@ const updateFilters = () => {
     const contrast = parseFloat(document.getElementById('contrast').value);
     const saturation = parseFloat(document.getElementById('saturation').value);
 
+    document.getElementById('brightnessVal').textContent = `${Math.round(brightness * 100)}%`;
+    document.getElementById('contrastVal').textContent = `${Math.round(contrast * 100)}%`;
+    document.getElementById('saturationVal').textContent = `${Math.round(saturation * 100)}%`;
+
     currentImage.filters = [
         new fabric.Image.filters.Brightness({ brightness }),
         new fabric.Image.filters.Contrast({ contrast }),
@@ -232,6 +256,48 @@ const updateFilters = () => {
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input =>
     input.addEventListener('input', updateFilters)
 );
+// Filtry
+document.getElementById('filterSelect').addEventListener('change', () => {
+    if (!currentImage) return;
+
+    let filter = null;
+    switch (document.getElementById('filterSelect').value) {
+        case 'sepia':
+            filter = new fabric.Image.filters.Sepia();
+            break;
+        case 'invert':
+            filter = new fabric.Image.filters.Invert();
+            break;
+        case 'blur':
+            filter = new fabric.Image.filters.Blur({ blur: 0.5 });
+            break;
+        case 'sharpen':
+            filter = new fabric.Image.filters.Convolute({
+                matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0]
+            });
+            break;
+        case 'pixelate':
+            filter = new fabric.Image.filters.Pixelate({ blocksize: 8 });
+            break;
+    }
+
+    // zachováme jas/kontrast/sytost
+    const brightness = parseFloat(document.getElementById('brightness').value);
+    const contrast = parseFloat(document.getElementById('contrast').value);
+    const saturation = parseFloat(document.getElementById('saturation').value);
+
+    const filters = [
+        new fabric.Image.filters.Brightness({ brightness }),
+        new fabric.Image.filters.Contrast({ contrast }),
+        new fabric.Image.filters.Saturation({ saturation })
+    ];
+
+    if (filter) filters.push(filter);
+
+    currentImage.filters = filters;
+    currentImage.applyFilters();
+    canvas.renderAll();
+});
 
 // pocita velikost
 function updateImageSize() {
