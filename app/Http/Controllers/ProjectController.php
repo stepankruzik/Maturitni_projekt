@@ -13,10 +13,10 @@ class ProjectController extends Controller
     }
 
     public function upload(Request $request)
-{
-    $request->validate([
-        'image' => 'required|image|mimes:jpg,jpeg,png|max:2048',
-    ]);
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpg,jpeg,png|max:10240',
+        ]);
 
     $file = $request->file('image');
     $filename = $file->getClientOriginalName(); 
