@@ -1,5 +1,12 @@
 <?php
 
+// Increase PHP upload limits for local development (effective for built-in server)
+@ini_set('upload_max_filesize', '12M');
+@ini_set('post_max_size', '12M');
+@ini_set('memory_limit', '256M');
+@ini_set('max_execution_time', '300');
+@ini_set('max_input_time', '300');
+
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 

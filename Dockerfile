@@ -19,6 +19,13 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-jpeg \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
+# Increase PHP upload limits to allow larger image uploads (10MB+)
+RUN { \
+    echo "upload_max_filesize=12M"; \
+    echo "post_max_size=12M"; \
+    echo "memory_limit=256M"; \
+} > /usr/local/etc/php/conf.d/uploads.ini
+
 # Instalace npm
 RUN npm install -g npm@latest
 

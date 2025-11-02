@@ -9,7 +9,7 @@ class ImageController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|max:2048'
+            'image' => 'required|image|max:10240', // max 10MB
         ]);
 
         $path = $request->file('image')->store('uploads', 'public');
