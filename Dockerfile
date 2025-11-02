@@ -4,7 +4,8 @@ FROM php:8.2-fpm
 # Nastavení pracovního adresáře
 WORKDIR /var/www/html
 
-# Instalace systémových závislostí
+# Instalace Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -14,8 +15,12 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     curl \
-    npm \
+    nodejs \
+    && docker-php-ext-configure gd --with-jpeg \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Instalace npm
+RUN npm install -g npm@latest
 
 # Instalace Composeru
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -27,13 +32,26 @@ COPY . .
 RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
 # Instalace PHP závislostí
-RUN composer install --no-interaction --optimize-autoloader --prefer-dist
+COPY composer.json composer.lock ./
+RUN composer install --no-scripts --no-autoloader --no-interaction
+
+# Kopírování zbytku aplikace
+COPY . .
+
+# Finální composer install
+RUN composer dump-autoload --optimize
 
 # Instalace Node.js závislostí a build frontendu
-RUN npm install && npm run build
+RUN npm ci && npm run build
 
 # Nastavení práv pro Laravel
-RUN chown -R www-data:www-data storage bootstrap/cache
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache \
+    public
+
+# Generování aplikačního klíče
+RUN php artisan key:generate
 
 EXPOSE 9000
 
