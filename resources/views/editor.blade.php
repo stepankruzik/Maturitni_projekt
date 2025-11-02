@@ -13,6 +13,14 @@
             <button id="grayscale" class="px-4 py-2 bg-gray-500 text-white rounded">Odstíny šedi</button>
             <button id="download" class="px-4 py-2 bg-green-500 text-white rounded">Stáhnout</button>
         </div>
+<div id="filterPreview" class="flex gap-2 overflow-x-auto p-2 bg-gray-100 rounded mt-4">
+  <div class="filter-thumb" data-filter="original">Originál</div>
+  <div class="filter-thumb" data-filter="grayscale">Šedý</div>
+  <div class="filter-thumb" data-filter="sepia">Sepia</div>
+  <div class="filter-thumb" data-filter="invert">Invert</div>
+  <div class="filter-thumb" data-filter="blur">Blur</div>
+  <div class="filter-thumb" data-filter="sharpen">Ostřit</div>
+</div>
     </div>
         <!-- Jas kontrast-->
     <div class="flex gap-4 items-center mt-4">
@@ -31,20 +39,56 @@
         <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0">
         <span id="saturationVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
     </div>
-    <div class="flex gap-4 items-center mt-2">
-    <label>Filtr:</label>
-    <select id="filterSelect">
-        <option value="none">Žádný</option>
-        <option value="sepia">Sepia</option>
-        <option value="invert">Invert</option>
-        <option value="blur">Blur</option>
-        <option value="sharpen">Sharpen</option>
-        <option value="pixelate">Pixelate</option>
-    </select>
-</div>
         </div>
     </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<style>
+.filter-thumb {
+    width: 80px;
+    height: 60px;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: transform 0.2s, background-color 0.2s;
+    user-select: none;
+    padding: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.filter-thumb:hover {
+    transform: scale(1.05);
+    background-color: #f8f8f8;
+}
+
+.filter-thumb.active {
+    background-color: #4f46e5;
+    color: white;
+    transform: scale(1.1);
+}
+
+#filterPreview::-webkit-scrollbar {
+    height: 6px;
+}
+
+#filterPreview::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#filterPreview::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#filterPreview::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+  </style>
+
 <script>
 const canvas = new fabric.Canvas('canvas');
 let currentImage = null;
@@ -236,6 +280,7 @@ canvas.on('mouse:up', () => {
 //  Jas / Kontrast / Sytost
 const updateFilters = () => {
     if (!currentImage) return;
+
     const brightness = parseFloat(document.getElementById('brightness').value);
     const contrast = parseFloat(document.getElementById('contrast').value);
     const saturation = parseFloat(document.getElementById('saturation').value);
@@ -244,11 +289,18 @@ const updateFilters = () => {
     document.getElementById('contrastVal').textContent = `${Math.round(contrast * 100)}%`;
     document.getElementById('saturationVal').textContent = `${Math.round(saturation * 100)}%`;
 
-    currentImage.filters = [
+    // Nejprve odstraníme staré filtry jas/kontrast/sytost
+    currentImage.filters = currentImage.filters.filter(f =>
+        !(f.type === 'Brightness' || f.type === 'Contrast' || f.type === 'Saturation')
+    );
+
+    // Přidáme nové aktuální hodnoty
+    currentImage.filters.push(
         new fabric.Image.filters.Brightness({ brightness }),
         new fabric.Image.filters.Contrast({ contrast }),
         new fabric.Image.filters.Saturation({ saturation })
-    ];
+    );
+
     currentImage.applyFilters();
     canvas.renderAll();
 };
@@ -256,7 +308,7 @@ const updateFilters = () => {
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input =>
     input.addEventListener('input', updateFilters)
 );
-// Filtry
+/*// Filtry
 document.getElementById('filterSelect').addEventListener('change', () => {
     if (!currentImage) return;
 
@@ -279,6 +331,7 @@ document.getElementById('filterSelect').addEventListener('change', () => {
         case 'pixelate':
             filter = new fabric.Image.filters.Pixelate({ blocksize: 8 });
             break;
+
     }
 
     // zachováme jas/kontrast/sytost
@@ -297,7 +350,59 @@ document.getElementById('filterSelect').addEventListener('change', () => {
     currentImage.filters = filters;
     currentImage.applyFilters();
     canvas.renderAll();
+});*/
+
+// ========== LIVE PREVIEW FILTRY ==========
+document.querySelectorAll('.filter-thumb').forEach(thumb => {
+  thumb.addEventListener('click', () => {
+    document.querySelectorAll('.filter-thumb').forEach(t => t.classList.remove('active'));
+    thumb.classList.add('active');
+    const type = thumb.getAttribute('data-filter');
+    applyLiveFilter(type);
+  });
 });
+
+function applyLiveFilter(type) {
+  if (!currentImage) return;
+  let filter = null;
+
+  switch (type) {
+    case 'grayscale': filter = new fabric.Image.filters.Grayscale(); break;
+    case 'sepia': filter = new fabric.Image.filters.Sepia(); break;
+    case 'invert': filter = new fabric.Image.filters.Invert(); break;
+    case 'blur': filter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
+    case 'pixelate': filter = new fabric.Image.filters.Pixelate({ blocksize: 6 }); break;
+    case 'sharpen': filter = new fabric.Image.filters.Convolute({
+      matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0]
+    }); break;
+    case 'emboss': filter = new fabric.Image.filters.Convolute({
+      matrix: [-2, -1, 0, -1, 1, 1, 0, 1, 2]
+    }); break;
+    case 'noise': filter = new fabric.Image.filters.Noise({ noise: 200 }); break;
+    case 'hue': filter = new fabric.Image.filters.HueRotation({ rotation: 0.5 }); break;
+    default: filter = null;
+  }
+
+  // zachování jas/kontrast/sytost
+  const brightness = parseFloat(document.getElementById('brightness').value);
+  const contrast = parseFloat(document.getElementById('contrast').value);
+  const saturation = parseFloat(document.getElementById('saturation').value);
+
+  const filters = [
+    new fabric.Image.filters.Brightness({ brightness }),
+    new fabric.Image.filters.Contrast({ contrast }),
+    new fabric.Image.filters.Saturation({ saturation })
+  ];
+
+  if (filter) filters.push(filter);
+
+  currentImage.filters = filters;
+  currentImage.applyFilters();
+  canvas.renderAll();
+}
+
+
+
 
 // pocita velikost
 function updateImageSize() {

@@ -1,0 +1,45 @@
+.filter-thumb {
+    width: 80px;
+    height: 60px;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: transform 0.2s, background-color 0.2s;
+    user-select: none;
+    padding: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.filter-thumb:hover {
+    transform: scale(1.05);
+    background-color: #f8f8f8;
+}
+
+.filter-thumb.active {
+    background-color: #4f46e5;
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Scrollbar styling */
+#filterPreview::-webkit-scrollbar {
+    height: 6px;
+}
+
+#filterPreview::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#filterPreview::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#filterPreview::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
