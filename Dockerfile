@@ -1,31 +1,40 @@
-# 1. Vyber PHP image s Composerem
+# Základní image PHP s FPM
 FROM php:8.2-fpm
 
-# 2. Instalace systémových závislostí a rozšíření
-RUN apt-get update && apt-get install -y \
-    git unzip libpng-dev libonig-dev libxml2-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
-
-# 3. Instalace Composeru
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# 4. Nastavení pracovního adresáře
+# Nastavení pracovního adresáře
 WORKDIR /var/www/html
 
-# 5. Kopírování projektu
+# Instalace systémových závislostí
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libpng-dev \
+    libjpeg-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    curl \
+    npm \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Instalace Composeru
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Kopírování souborů aplikace
 COPY . .
 
-# 6. Instalace PHP závislostí
-RUN composer install --no-interaction --optimize-autoloader
+# Vytvoření .env souboru, pokud neexistuje
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
-# 7. Povolení storage a cache
-RUN php artisan key:generate \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
+# Instalace PHP závislostí
+RUN composer install --no-interaction --optimize-autoloader --prefer-dist
 
-# 8. Expose port pro web server
-EXPOSE 8000
+# Instalace Node.js závislostí a build frontendu
+RUN npm install && npm run build
 
-# 9. Start Laravel serveru
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Nastavení práv pro Laravel
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 9000
+
+CMD ["php-fpm"]
