@@ -1,65 +1,51 @@
-# Základní image PHP s FPM
-FROM php:8.2-fpm
+# ===== Stage 1: Build frontend =====
+FROM node:20 AS frontend
 
-# Nastavení pracovního adresáře
+WORKDIR /app
+
+# Kopíruj package.json a package-lock.json pro rychlejší instalaci
+COPY package*.json ./
+
+# Instalace npm závislostí
+RUN npm ci
+
+# Kopíruj zbytek frontend souborů
+COPY . .
+
+# Build frontend (např. Laravel Mix / Vite)
+RUN npm run build
+
+# ===== Stage 2: PHP backend =====
+FROM php:8.4-cli
+
 WORKDIR /var/www/html
 
-# Instalace Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+# Instalace potřebných PHP rozšíření
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libpng-dev \
-    libjpeg-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    curl \
-    nodejs \
-    && docker-php-ext-configure gd --with-jpeg \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+    libzip-dev zip unzip git curl \
+ && docker-php-ext-install zip pdo_mysql
 
-# Increase PHP upload limits to allow larger image uploads (10MB+)
-RUN { \
-    echo "upload_max_filesize=12M"; \
-    echo "post_max_size=12M"; \
-    echo "memory_limit=256M"; \
-} > /usr/local/etc/php/conf.d/uploads.ini
+# Nainstaluj Composer
+COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
 
-# Instalace npm
-RUN npm install -g npm@latest
-
-# Instalace Composeru
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Kopírování souborů aplikace
-COPY . .
-
-# Vytvoření .env souboru, pokud neexistuje
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
+# Kopíruj backend + build frontend
+COPY --from=frontend /app /var/www/html
 
 # Instalace PHP závislostí
-COPY composer.json composer.lock ./
-RUN composer install --no-scripts --no-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Kopírování zbytku aplikace
-COPY . .
+# Připrav .env soubor pokud chybí
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
-# Finální composer install
-RUN composer dump-autoload --optimize
-
-# Instalace Node.js závislostí a build frontendu
-RUN npm ci && npm run build
-
-# Nastavení práv pro Laravel
-RUN chown -R www-data:www-data \
-    storage \
-    bootstrap/cache \
-    public
-
-# Generování aplikačního klíče
+# Vygeneruj APP_KEY
 RUN php artisan key:generate
 
-EXPOSE 9000
+# Nastavení práv pro Laravel
+RUN chown -R www-data:www-data storage bootstrap/cache \
+ && chmod -R 775 storage bootstrap/cache
 
-CMD ["php-fpm"]
+# Expose HTTP port pro Render
+EXPOSE 80
+
+# Spuštění Laravel přes artisan serve
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
