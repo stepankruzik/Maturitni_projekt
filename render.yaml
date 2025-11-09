@@ -16,6 +16,9 @@ services:
       npm ci || true
       npm run build || true
       php artisan storage:link || true
+      php artisan config:cache || true
+      php artisan route:cache || true
+      php artisan view:cache || true
       php artisan migrate --force || true
     startCommand: php artisan serve --host 0.0.0.0 --port $PORT
     envVars:
@@ -26,6 +29,10 @@ services:
       - key: APP_NAME
         value: "Maturitni Prace"
       - key: APP_URL
+        value: "https://maturitni-projekt-gjib.onrender.com"
+      - key: FORCE_HTTPS
+        value: "true"
+      - key: ASSET_URL
         value: "https://maturitni-projekt-gjib.onrender.com"
       - key: DB_CONNECTION
         value: sqlite

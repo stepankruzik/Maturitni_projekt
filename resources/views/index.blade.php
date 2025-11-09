@@ -6,7 +6,7 @@
     <h2 class="text-xl font-semibold mb-4">Nahraj nebo vytvoř nový obrázek</h2>
 
     <!-- Upload formulář -->
-    <form action="{{ route('upload') }}" method="POST" enctype="multipart/form-data" class="mb-6 space-y-2">
+    <form action="{{ secure_url(route('upload', [], false)) }}" method="POST" enctype="multipart/form-data" class="mb-6 space-y-2">
         @csrf
         <input type="file" name="image" accept="image/*" class="block">
         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">
