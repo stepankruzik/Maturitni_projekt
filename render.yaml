@@ -2,8 +2,24 @@ services:
   - type: web
     name: maturitni-prace
     env: docker
+    repo: https://github.com/stepankruzik/Maturitni_projekt
+    plan: free
+    branch: main
     dockerfilePath: ./Dockerfile
-    dockerCommand: php artisan serve --host 0.0.0.0 --port $PORT
+    buildCommand: |
+      cp .env.example .env
+      mkdir -p database
+      touch database/database.sqlite
+      chmod -R 775 database || true
+      php artisan key:generate --ansi || true
+      composer install --no-dev --optimize-autoloader --no-interaction || true
+      npm ci || true
+      npm run build || true
+      php artisan storage:link || true
+      chmod -R 775 storage/app/public || true
+      chmod -R 775 public/storage || true
+      php artisan migrate --force || true
+    startCommand: php artisan serve --host 0.0.0.0 --port $PORT
     envVars:
       - key: APP_ENV
         value: production
@@ -17,51 +33,9 @@ services:
         value: /app/database/database.sqlite
       - key: SESSION_DRIVER
         value: file
-    buildCommand: |
-      cp .env.example .env
-      # ensure the database directory exists and create sqlite file on the image
-      mkdir -p /app/database
-      touch /app/database/database.sqlite
+      - key: LOG_CHANNEL
+        value: stderr
     disk:
       name: sqlite-data
-      # Mount the persistent disk where the Docker container places the app
-      # (our Dockerfile uses WORKDIR /app, so database lives under /app/database)
       mountPath: /app/database
-      services:
-        - type: web
-          name: maturitni-prace
-          env: docker
-          repo: https://github.com/stepankruzik/Maturitni_projekt
-          plan: free
-          branch: main
-          dockerfilePath: ./Dockerfile
-          # Build steps run in Render's build environment. Create sqlite file in
-          # mounted database directory, install assets and run migrations.
-          buildCommand: |
-            cp .env.example .env
-            mkdir -p database
-            touch database/database.sqlite
-            chmod -R 775 database || true
-            php artisan key:generate --ansi || true
-            # If you prefer to install deps in Dockerfile, keep these optional
-            composer install --no-dev --optimize-autoloader --no-interaction || true
-            npm ci || true
-            npm run build || true
-            php artisan migrate --force || true
-          startCommand: php artisan serve --host 0.0.0.0 --port $PORT
-          envVars:
-            - key: DB_CONNECTION
-              value: sqlite
-            - key: DB_DATABASE
-              value: /app/database/database.sqlite
-            - key: APP_ENV
-              value: production
-            - key: APP_DEBUG
-              value: false
-            - key: LOG_CHANNEL
-              value: stderr
-          disk:
-            name: sqlite-data
-            # Mount the persistent disk where the container expects the DB
-            mountPath: /app/database
-            sizeGB: 1
+      sizeGB: 1
