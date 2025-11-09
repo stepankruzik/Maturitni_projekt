@@ -15,6 +15,8 @@ services:
         value: sqlite
       - key: DB_DATABASE
         value: /app/database/database.sqlite
+      - key: SESSION_DRIVER
+        value: file
     buildCommand: |
       cp .env.example .env
       # ensure the database directory exists and create sqlite file on the image
