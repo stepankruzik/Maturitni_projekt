@@ -3,22 +3,16 @@ FROM node:20 AS frontend
 
 WORKDIR /app
 
-# Kopíruj composer soubory a nainstaluj PHP závislosti (Flux CSS potřebuje vendor soubory)
-COPY composer.json composer.lock ./
-RUN apt-get update && apt-get install -y zip unzip git curl \
- && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer \
- && composer install --no-dev --optimize-autoloader --no-interaction
-
-# Kopíruj package.json a package-lock.json pro npm
+# Kopíruj package.json a package-lock.json
 COPY package*.json ./
 
 # Instalace npm závislostí
 RUN npm ci
 
-# Kopíruj zbytek frontend souborů (CSS, JS)
+# Kopíruj zbytek frontend souborů
 COPY . .
 
-# Build frontend (např. Vite)
+# Build frontend (Vite/Tailwind)
 RUN npm run build
 
 # ===== Stage 2: PHP backend =====
