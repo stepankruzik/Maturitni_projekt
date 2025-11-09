@@ -1,9 +1,8 @@
-# Použij PHP image s CLI
 FROM php:8.4-cli
 
 WORKDIR /app
 
-# Instalace PHP rozšíření a Node.js + npm
+# Instalace PHP rozšíření + Node + npm
 RUN apt-get update && apt-get install -y \
     libzip-dev zip unzip git curl nodejs npm \
  && docker-php-ext-install zip pdo_mysql \
@@ -15,7 +14,7 @@ COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
 # Kopíruj všechny soubory projektu
 COPY . .
 
-# Instalace PHP závislostí
+# Instalace PHP závislostí (vendor složka musí být před buildem)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Instalace npm závislostí a build frontend
@@ -32,8 +31,5 @@ RUN php artisan key:generate
 RUN chown -R www-data:www-data storage bootstrap/cache \
  && chmod -R 775 storage bootstrap/cache
 
-# Expose HTTP port
 EXPOSE 80
-
-# Spuštění Laravel přes artisan serve
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
