@@ -11,6 +11,7 @@ Route::post('/upload', [ImageController::class, 'upload'])->name('upload');
 Route::post('/createBlank', [ImageController::class, 'createBlank'])->name('createBlank');
 
 Route::get('/editor', function() {
-    $imagePath = 'storage/' . request()->get('path');
+    $path = request()->get('path');
+    $imagePath = asset('storage/' . $path);
     return view('editor', compact('imagePath'));
 })->name('editor');
