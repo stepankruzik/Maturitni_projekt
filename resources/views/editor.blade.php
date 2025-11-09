@@ -58,8 +58,8 @@ const MAX_CANVAS_WIDTH = 900;
 const MAX_CANVAS_HEIGHT = 600;
 let previousAngle = 0;
 
-// načtení obrázku
 const initialImageUrl = @json($imagePath);
+
 if (initialImageUrl) {
     fabric.Image.fromURL(initialImageUrl, function(img) {
         currentImage = img;
@@ -68,6 +68,7 @@ if (initialImageUrl) {
         updateImageSize();
     }, { crossOrigin: 'anonymous' });
 }
+
 
 function fitImageToCanvas(img) {
 
@@ -133,7 +134,7 @@ function loadImage(url) {
     });
 }
 
-loadImage("{{ asset($imagePath) }}");
+
 
 // Upload obrázku
 document.getElementById('uploadImage').addEventListener('change', (e) => {
