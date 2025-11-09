@@ -8,16 +8,14 @@ services:
     dockerfilePath: ./Dockerfile
     buildCommand: |
       cp .env.example .env
-      mkdir -p database
+      mkdir -p database storage/app/public/uploads
       touch database/database.sqlite
-      chmod -R 775 database || true
+      chmod -R 775 database storage || true
       php artisan key:generate --ansi || true
       composer install --no-dev --optimize-autoloader --no-interaction || true
       npm ci || true
       npm run build || true
       php artisan storage:link || true
-      chmod -R 775 storage/app/public || true
-      chmod -R 775 public/storage || true
       php artisan migrate --force || true
     startCommand: php artisan serve --host 0.0.0.0 --port $PORT
     envVars:
@@ -27,6 +25,8 @@ services:
         value: false
       - key: APP_NAME
         value: "Maturitni Prace"
+      - key: APP_URL
+        value: "https://maturitni-projekt-gjib.onrender.com"
       - key: DB_CONNECTION
         value: sqlite
       - key: DB_DATABASE
@@ -36,6 +36,6 @@ services:
       - key: LOG_CHANNEL
         value: stderr
     disk:
-      name: sqlite-data
-      mountPath: /app/database
+      name: storage-data
+      mountPath: /app/storage
       sizeGB: 1
