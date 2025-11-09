@@ -13,9 +13,13 @@ services:
         value: "Maturitni Prace"
       - key: DB_CONNECTION
         value: sqlite
+      - key: DB_DATABASE
+        value: /app/database/database.sqlite
     buildCommand: |
       cp .env.example .env
-      touch database/database.sqlite
+      # ensure the database directory exists and create sqlite file on the image
+      mkdir -p /app/database
+      touch /app/database/database.sqlite
     disk:
       name: sqlite-data
       # Mount the persistent disk where the Docker container places the app
