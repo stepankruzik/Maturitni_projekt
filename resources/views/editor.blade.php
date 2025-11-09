@@ -134,7 +134,7 @@ function loadImage(url) {
     });
 }
 
-
+loadImage(@json(request('path')));
 
 // Upload obrázku
 document.getElementById('uploadImage').addEventListener('change', (e) => {
