@@ -18,5 +18,7 @@ services:
       touch database/database.sqlite
     disk:
       name: sqlite-data
-      mountPath: /var/www/html/database
+      # Mount the persistent disk where the Docker container places the app
+      # (our Dockerfile uses WORKDIR /app, so database lives under /app/database)
+      mountPath: /app/database
       sizeGB: 1
