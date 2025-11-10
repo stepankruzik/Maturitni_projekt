@@ -3,20 +3,23 @@
         Domů
     </x-slot:heading>
 
-    <h2 class="text-xl font-semibold mb-4">Nahraj nebo vytvoř nový obrázek</h2>
+    <!-- Drag and drop / kliknutí -->
+    <div class="max-w-xl mx-auto mt-20">
 
-    <!-- Upload formulář -->
-     <form action="{{ route('upload') }}" method="POST" enctype="multipart/form-data">
-        @csrf
-        <input type="file" name="image" accept="image/*" class="block">
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">
-            Nahrát obrázek
-        </button>
-    </form>
-    
+        <form id="uploadForm" action="{{ route('upload') }}" method="POST" enctype="multipart/form-data" class="hidden">
+            @csrf
+            <input id="fileInput" type="file" name="image" accept="image/*">
+        </form>
 
-    <!-- Vytvoření prázdného -->
-    <form action="{{ route('createBlank') }}" method="POST" class="space-y-2">
+        <div id="dropZone"
+             class="border-4 border-dashed border-gray-400 rounded-2xl p-12 text-center cursor-pointer
+                    hover:border-indigo-400 hover:bg-indigo-50 transition duration-200">
+            Přetáhni obrázek sem nebo klikni pro výběr
+        </div>
+    </div>
+
+    <!-- Vytvoření prázdného obrázku -->
+    <form action="{{ route('createBlank') }}" method="POST" class="space-y-2 mt-6 max-w-xl mx-auto">
         @csrf
         <input type="number" name="width" placeholder="Šířka" class="border p-1">
         <input type="number" name="height" placeholder="Výška" class="border p-1">
@@ -24,4 +27,39 @@
             Vytvořit prázdný
         </button>
     </form>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const form = document.getElementById('uploadForm');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-indigo-500');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500');
+
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+
+            form.submit();
+        });
+
+        fileInput.addEventListener('change', () => {
+            form.submit();
+        });
+    </script>
 </x-layout>
