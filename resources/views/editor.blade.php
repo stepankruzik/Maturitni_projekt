@@ -44,8 +44,6 @@
             </div>
         </div>
 
-        <!-- Upload obrázku -->
-        <input type="file" id="uploadImage" accept="image/*" class="mt-4">
     </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
@@ -58,20 +56,33 @@ const MAX_CANVAS_WIDTH = 900;
 const MAX_CANVAS_HEIGHT = 600;
 let previousAngle = 0;
 
-const initialImageUrl = @json($imagePath);
+// Načtení obrázku z URL poslané z indexu
+const imageUrl = @json(request('path'));
+if (imageUrl) loadImage(imageUrl);
 
-if (initialImageUrl) {
-    fabric.Image.fromURL(initialImageUrl, function(img) {
+// Funkce pro načtení obrázku do Fabric canvasu
+function loadImage(url) {
+    fabric.Image.fromURL(url, (img) => {
+        if (currentImage) canvas.remove(currentImage);
+
         currentImage = img;
+        img.set({
+            originX: 'center',
+            originY: 'center',
+            selectable: true,
+            hasRotatingPoint: true,
+            cornerStyle: 'circle'
+        });
         canvas.add(img);
+
+        fitImageToCanvas(img);
         fitObjectToViewport(img);
         updateImageSize();
     }, { crossOrigin: 'anonymous' });
 }
 
-
+// Přizpůsobení obrázku canvasu
 function fitImageToCanvas(img) {
-
     img.set({ scaleX: 1, scaleY: 1 });
     canvas.setWidth(MAX_CANVAS_WIDTH);
     canvas.setHeight(MAX_CANVAS_HEIGHT);
@@ -83,22 +94,18 @@ function fitImageToCanvas(img) {
     canvas.requestRenderAll();
 }
 
+// Zoom a centrování objektu
 function fitObjectToViewport(obj) {
     if (!obj) return;
 
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-
     canvas.setWidth(MAX_CANVAS_WIDTH);
     canvas.setHeight(MAX_CANVAS_HEIGHT);
-
     canvas.renderAll();
 
     const bbox = obj.getBoundingRect(true);
-    const vpw = canvas.width - 40; // padding
-    const vph = canvas.height - 40;
-
-    const scaleX = vpw / bbox.width;
-    const scaleY = vph / bbox.height;
+    const scaleX = (canvas.width - 40) / bbox.width;
+    const scaleY = (canvas.height - 40) / bbox.height;
     const scale = Math.min(scaleX, scaleY, 1);
 
     const center = new fabric.Point(canvas.width / 2, canvas.height / 2);
@@ -112,41 +119,7 @@ function fitObjectToViewport(obj) {
     canvas.requestRenderAll();
 }
 
-// Načtení obrázku
-function loadImage(url) {
-    fabric.Image.fromURL(url, (img) => {
-        canvas.clear();
-        currentImage = img;
-
-        img.set({
-            originX: 'center',
-            originY: 'center',
-            selectable: true,
-            hasRotatingPoint: true,
-            cornerStyle: 'circle'
-        });
-
-        canvas.add(img);
-        fitImageToCanvas(img);
-        fitObjectToViewport(img);
-        previousAngle = img.angle || 0;
-        updateImageSize();
-    });
-}
-
-loadImage(@json(request('path')));
-
-// Upload obrázku
-document.getElementById('uploadImage').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(f) {
-        loadImage(f.target.result);
-    };
-    reader.readAsDataURL(file);
-});
-
+// Toggle resize / crop režimu
 // Resize / Crop
 document.getElementById('toggleMode').addEventListener('click', () => {
     if (mode === 'resize') {
@@ -235,48 +208,28 @@ document.getElementById('cropBtn').addEventListener('click', () => {
 });
 
 // Download
-
 document.getElementById('download').addEventListener('click', () => {
     if (!currentImage) return;
 
     const imgEl = currentImage._element;
-    let origW = imgEl.naturalWidth || (currentImage.width * currentImage.scaleX);
-    let origH = imgEl.naturalHeight || (currentImage.height * currentImage.scaleY);
-    
-    // Výpočet ohraničujícího boxu pro rotovaný obrázek
+    let origW = imgEl.naturalWidth || currentImage.width * currentImage.scaleX;
+    let origH = imgEl.naturalHeight || currentImage.height * currentImage.scaleY;
     const angle = (currentImage.angle || 0) * Math.PI / 180;
     const absCos = Math.abs(Math.cos(angle));
     const absSin = Math.abs(Math.sin(angle));
-    
-    // Výpočet rozměrů, které pojmou celý rotovaný obrázek bez oříznutí
     const boundsW = origW * absCos + origH * absSin;
     const boundsH = origW * absSin + origH * absCos;
-    
-    // Vytvoření pomocného canvasu s rozměry pro celý rotovaný obrázek
+
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = Math.round(boundsW);
     exportCanvas.height = Math.round(boundsH);
     const exportCtx = exportCanvas.getContext('2d');
 
-    // Vykreslení transformovaného obrázku vycentrovaného na exportní canvas
     exportCtx.save();
-    
-    // Získání středového bodu canvasu podle aktuálních rozměrů
-    const centerX = exportCanvas.width / 2;
-    const centerY = exportCanvas.height / 2;
-    
-    // Posun na střed exportního canvasu
-    exportCtx.translate(centerX, centerY);
-    
-    // Aplikace rotace
-    exportCtx.rotate((currentImage.angle || 0) * Math.PI / 180);
-    
-    // Aplikace měřítka
+    exportCtx.translate(exportCanvas.width/2, exportCanvas.height/2);
+    exportCtx.rotate(angle);
     exportCtx.scale(currentImage.scaleX || 1, currentImage.scaleY || 1);
-    
-    // Vykreslení vycentrovaného obrázku
-    exportCtx.drawImage(imgEl, -imgEl.width / 2, -imgEl.height / 2);
-    
+    exportCtx.drawImage(imgEl, -imgEl.width/2, -imgEl.height/2);
     exportCtx.restore();
 
     const dataURL = exportCanvas.toDataURL('image/png');
@@ -287,9 +240,8 @@ document.getElementById('download').addEventListener('click', () => {
 });
 
 // Filtry / Jas / Kontrast / Sytost
-
-function applyFilters(liveFilter=null){
-    if(!currentImage) return;
+function applyFilters(liveFilter=null) {
+    if (!currentImage) return;
 
     const brightness = parseFloat(document.getElementById('brightness').value);
     const contrast = parseFloat(document.getElementById('contrast').value);
@@ -299,58 +251,57 @@ function applyFilters(liveFilter=null){
     document.getElementById('contrastVal').textContent = `${Math.round(contrast*100)}%`;
     document.getElementById('saturationVal').textContent = `${Math.round(saturation*100)}%`;
 
-    let filters = [
+    const filters = [
         new fabric.Image.filters.Brightness({ brightness }),
         new fabric.Image.filters.Contrast({ contrast }),
         new fabric.Image.filters.Saturation({ saturation })
     ];
 
-    if(liveFilter) filters.push(liveFilter);
+    if (liveFilter) filters.push(liveFilter);
 
     currentImage.filters = filters;
     currentImage.applyFilters();
     canvas.renderAll();
 }
 
-document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input=>{
-    input.addEventListener('input', ()=> applyFilters());
+document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
+    input.addEventListener('input', () => applyFilters());
 });
 
-document.querySelectorAll('.filter-thumb').forEach(thumb=>{
-    thumb.addEventListener('click', ()=>{
-        document.querySelectorAll('.filter-thumb').forEach(t=>t.classList.remove('active'));
+document.querySelectorAll('.filter-thumb').forEach(thumb => {
+    thumb.addEventListener('click', () => {
+        document.querySelectorAll('.filter-thumb').forEach(t => t.classList.remove('active'));
         thumb.classList.add('active');
 
         const type = thumb.getAttribute('data-filter');
         let filter = null;
 
-        switch(type){
+        switch(type) {
             case 'grayscale': filter = new fabric.Image.filters.Grayscale(); break;
             case 'sepia': filter = new fabric.Image.filters.Sepia(); break;
             case 'invert': filter = new fabric.Image.filters.Invert(); break;
             case 'blur': filter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
             case 'pixelate': filter = new fabric.Image.filters.Pixelate({ blocksize: 6 }); break;
             case 'sharpen': filter = new fabric.Image.filters.Convolute({ matrix: [0,-1,0,-1,5,-1,0,-1,0] }); break;
-            default: filter = null;
         }
 
         applyFilters(filter);
     });
 });
 
+// Drag / Pan
 let isDragging=false, lastPosX, lastPosY;
-
-canvas.on('mouse:down', opt=>{
+canvas.on('mouse:down', opt => {
     const evt = opt.e;
-    if(evt.altKey){
+    if (evt.altKey) {
         isDragging = true;
         canvas.selection = false;
         lastPosX = evt.clientX;
         lastPosY = evt.clientY;
     }
 });
-canvas.on('mouse:move', opt=>{
-    if(!isDragging) return;
+canvas.on('mouse:move', opt => {
+    if (!isDragging) return;
     const e = opt.e;
     const vpt = canvas.viewportTransform;
     vpt[4] += e.clientX - lastPosX;
@@ -359,23 +310,21 @@ canvas.on('mouse:move', opt=>{
     lastPosX = e.clientX;
     lastPosY = e.clientY;
 });
-canvas.on('mouse:up', ()=>{
-    isDragging=false;
-    canvas.selection=true;
+canvas.on('mouse:up', () => {
+    isDragging = false;
+    canvas.selection = true;
 });
 
-
-function updateImageSize(){
-    if(!currentImage) return;
+// Update size label
+function updateImageSize() {
+    if (!currentImage) return;
     const width = Math.round(currentImage.width * currentImage.scaleX);
     const height = Math.round(currentImage.height * currentImage.scaleY);
     document.getElementById('imageSize').textContent = `Velikost: ${width} × ${height} px`;
 }
-canvas.on('object:modified', (e) => {
-    if (!currentImage) {
-        updateImageSize();
-        return;
-    }
+
+canvas.on('object:modified', () => {
+    if (!currentImage) return;
     const angle = currentImage.angle || 0;
     if (angle !== previousAngle) {
         previousAngle = angle;
@@ -383,6 +332,6 @@ canvas.on('object:modified', (e) => {
     }
     updateImageSize();
 });
-
 </script>
+
 </x-layout>
