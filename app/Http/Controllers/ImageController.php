@@ -12,30 +12,32 @@ public function upload(Request $request)
         'image' => 'required|image|max:10240',
     ]);
 
-    // uloží do storage/app/public/uploads
-    $path = $request->file('image')->store('uploads', 'public');
+    $file = $request->file('image');
+    $filename = uniqid() . '.' . $file->getClientOriginalExtension();
 
-    // přesměruje na editor
-    return redirect()->route('editor', ['path' => $path]);
+    // uložíme rovnou do public/uploads
+    $file->move(public_path('uploads'), $filename);
+
+    return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
 }
 
 
+   public function createBlank(Request $request)
+{
+    $width = $request->input('width', 500);
+    $height = $request->input('height', 500);
 
-    public function createBlank(Request $request)
-    {
-        $width = $request->input('width', 500);
-        $height = $request->input('height', 500);
+    $image = imagecreatetruecolor($width, $height);
+    $white = imagecolorallocate($image, 255, 255, 255);
+    imagefill($image, 0, 0, $white);
 
-        $image = imagecreatetruecolor($width, $height);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        imagefill($image, 0, 0, $white);
+    $filename = 'blank_' . time() . '.png';
+    $path = public_path('uploads/' . $filename);
 
-        $filename = 'blank_' . time() . '.png';
-        $path = storage_path('app/public/uploads/' . $filename);
+    imagepng($image, $path);
+    imagedestroy($image);
 
-        imagepng($image, $path);
-        imagedestroy($image);
+    return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
+}
 
-        return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
-    }
 }

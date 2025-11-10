@@ -12,7 +12,7 @@ Route::post('/createBlank', [ImageController::class, 'createBlank'])->name('crea
 
 Route::get('/editor', function() {
     $path = request()->get('path'); // např. 'uploads/abc.png'
-    $imagePath = $path ? asset('storage/' . $path) : null;
+    $imagePath = $path ? asset($path) : null;
 
     return view('editor', compact('imagePath'));
 })->name('editor');
