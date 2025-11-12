@@ -1,51 +1,60 @@
 <x-layout>
     <x-slot:heading>Editor obrázku</x-slot:heading>
 
-    <div class="flex flex-col items-center space-y-4">
-        <p id="imageSize" class="text-gray-600 font-semibold"></p>
-        <p id="rotationAngle" class="text-gray-600 font-semibold"></p>
+    <div class="flex h-screen">
+    <!-- Sidebar vlevo -->
+    <div class="w-72 bg-gray-100 border-r border-gray-300 p-4 overflow-y-auto">
+        <h2 class="text-lg font-semibold mb-4">Úpravy obrázku</h2>
 
-        <!-- Canvas -->
-        <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
+        <p id="imageSize" class="text-gray-600 font-semibold mb-1"></p>
+        <p id="rotationAngle" class="text-gray-600 font-semibold mb-3"></p>
 
-        <!-- Tlačítka -->
-        <div class="flex gap-2">
-            <button id="toggleMode" class="px-4 py-2 bg-yellow-500 text-white rounded">Režim: Změnit velikost</button>
-            <button id="cropBtn" class="px-4 py-2 bg-purple-500 text-white rounded">Oříznout</button>
-            <button id="grayscale" class="px-4 py-2 bg-gray-500 text-white rounded">Odstíny šedi</button>
-            <button id="download" class="px-4 py-2 bg-green-500 text-white rounded">Stáhnout</button>
+        <!-- Režimy a akce -->
+        <div class="space-y-2 mb-4">
+            <button id="toggleMode" class="w-full px-4 py-2 bg-yellow-500 text-white rounded">Režim: Změnit velikost</button>
+            <button id="cropBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Oříznout</button>
+            <button id="download" class="w-full px-4 py-2 bg-green-500 text-white rounded">Stáhnout</button>
         </div>
 
-        <!-- filtry -->
-        <div id="filterPreview" class="flex gap-2 overflow-x-auto p-2 bg-gray-100 rounded mt-4">
-            <div class="filter-thumb" data-filter="original">Originál</div>
-            <div class="filter-thumb" data-filter="grayscale">Šedý</div>
-            <div class="filter-thumb" data-filter="sepia">Sepia</div>
-            <div class="filter-thumb" data-filter="invert">Invert</div>
-            <div class="filter-thumb" data-filter="blur">Blur</div>
-            <div class="filter-thumb" data-filter="sharpen">Ostřit</div>
-        </div>
+        <!-- Filtry -->
+        <details open class="mb-4 bg-white rounded-lg shadow p-3">
+            <summary class="cursor-pointer font-medium">Filtry</summary>
+            <div id="filterPreview" class="flex flex-wrap gap-2 mt-2">
+    <img src="/thumbnails/original.png" class="filter-thumb" data-filter="original">
+    <img src="/thumbnails/grayscale.png" class="filter-thumb" data-filter="grayscale">
+    <img src="/thumbnails/sepia.png" class="filter-thumb" data-filter="sepia">
+    <img src="/thumbnails/invert.png" class="filter-thumb" data-filter="invert">
+    <img src="/thumbnails/blur.png" class="filter-thumb" data-filter="blur">
+    <img src="/thumbnails/sharpen.png" class="filter-thumb" data-filter="sharpen">
+</div>
+        </details>
 
         <!-- Jas / Kontrast / Sytost -->
-        <div class="flex gap-4 items-center mt-4">
-            <div class="flex items-center gap-2">
-                <label>Jas:</label>
-                <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0">
-                <span id="brightnessVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
+        <details open class="bg-white rounded-lg shadow p-3">
+            <summary class="cursor-pointer font-medium">Úrovně</summary>
+            <div class="space-y-3 mt-2">
+                <label class="flex items-center gap-2">
+                    Jas:
+                    <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0" class="w-full">
+                </label>
+                <label class="flex items-center gap-2">
+                    Kontrast:
+                    <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0" class="w-full">
+                </label>
+                <label class="flex items-center gap-2">
+                    Sytost:
+                    <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0" class="w-full">
+                </label>
             </div>
-            <div class="flex items-center gap-2">
-                <label>Kontrast:</label>
-                <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0">
-                <span id="contrastVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <label>Sytost:</label>
-                <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0">
-                <span id="saturationVal" class="text-sm text-gray-600 w-12 text-right">0%</span>
-            </div>
-        </div>
-
+        </details>
     </div>
+
+    <!-- Canvas vpravo -->
+    <div class="flex-1 flex justify-center items-center bg-gray-50">
+        <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
+    </div>
+</div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script>
@@ -120,7 +129,6 @@ function fitObjectToViewport(obj) {
     canvas.requestRenderAll();
 }
 
-// Toggle resize / crop režimu
 // Resize / Crop
 document.getElementById('toggleMode').addEventListener('click', () => {
     if (mode === 'resize') {
@@ -244,15 +252,11 @@ document.getElementById('download').addEventListener('click', () => {
 let activeFilter = null;
 
 function applyFilters() {
-    if (!currentImage) return;
+    if (!currentImage || !currentImage.filters) return;
 
     const brightness = parseFloat(document.getElementById('brightness').value);
     const contrast = parseFloat(document.getElementById('contrast').value);
     const saturation = parseFloat(document.getElementById('saturation').value);
-
-    document.getElementById('brightnessVal').textContent = `${Math.round(brightness * 100)}%`;
-    document.getElementById('contrastVal').textContent = `${Math.round(contrast * 100)}%`;
-    document.getElementById('saturationVal').textContent = `${Math.round(saturation * 100)}%`;
 
     const filters = [
         new fabric.Image.filters.Brightness({ brightness }),
@@ -264,22 +268,20 @@ function applyFilters() {
 
     currentImage.filters = filters;
     currentImage.applyFilters();
-    canvas.renderAll();
+    canvas.requestRenderAll();
 }
 
-// Filtry
 document.querySelectorAll('.filter-thumb').forEach(thumb => {
     thumb.addEventListener('click', () => {
         document.querySelectorAll('.filter-thumb').forEach(t => t.classList.remove('active'));
         thumb.classList.add('active');
 
         const type = thumb.getAttribute('data-filter');
-        switch (type) {
+        switch(type){
             case 'grayscale': activeFilter = new fabric.Image.filters.Grayscale(); break;
             case 'sepia': activeFilter = new fabric.Image.filters.Sepia(); break;
             case 'invert': activeFilter = new fabric.Image.filters.Invert(); break;
             case 'blur': activeFilter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
-            case 'pixelate': activeFilter = new fabric.Image.filters.Pixelate({ blocksize: 6 }); break;
             case 'sharpen': activeFilter = new fabric.Image.filters.Convolute({ matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0] }); break;
             default: activeFilter = null; break;
         }
@@ -287,6 +289,12 @@ document.querySelectorAll('.filter-thumb').forEach(thumb => {
         applyFilters();
     });
 });
+
+document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
+    input.addEventListener('input', applyFilters);
+});
+
+
 
 // Posuvníky
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
