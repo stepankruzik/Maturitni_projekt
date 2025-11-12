@@ -3,6 +3,7 @@
 
     <div class="flex flex-col items-center space-y-4">
         <p id="imageSize" class="text-gray-600 font-semibold"></p>
+        <p id="rotationAngle" class="text-gray-600 font-semibold"></p>
 
         <!-- Canvas -->
         <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
@@ -240,16 +241,18 @@ document.getElementById('download').addEventListener('click', () => {
 });
 
 // Filtry / Jas / Kontrast / Sytost
-function applyFilters(liveFilter=null) {
+let activeFilter = null;
+
+function applyFilters() {
     if (!currentImage) return;
 
     const brightness = parseFloat(document.getElementById('brightness').value);
     const contrast = parseFloat(document.getElementById('contrast').value);
     const saturation = parseFloat(document.getElementById('saturation').value);
 
-    document.getElementById('brightnessVal').textContent = `${Math.round(brightness*100)}%`;
-    document.getElementById('contrastVal').textContent = `${Math.round(contrast*100)}%`;
-    document.getElementById('saturationVal').textContent = `${Math.round(saturation*100)}%`;
+    document.getElementById('brightnessVal').textContent = `${Math.round(brightness * 100)}%`;
+    document.getElementById('contrastVal').textContent = `${Math.round(contrast * 100)}%`;
+    document.getElementById('saturationVal').textContent = `${Math.round(saturation * 100)}%`;
 
     const filters = [
         new fabric.Image.filters.Brightness({ brightness }),
@@ -257,37 +260,39 @@ function applyFilters(liveFilter=null) {
         new fabric.Image.filters.Saturation({ saturation })
     ];
 
-    if (liveFilter) filters.push(liveFilter);
+    if (activeFilter) filters.push(activeFilter);
 
     currentImage.filters = filters;
     currentImage.applyFilters();
     canvas.renderAll();
 }
 
-document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
-    input.addEventListener('input', () => applyFilters());
-});
-
+// Filtry
 document.querySelectorAll('.filter-thumb').forEach(thumb => {
     thumb.addEventListener('click', () => {
         document.querySelectorAll('.filter-thumb').forEach(t => t.classList.remove('active'));
         thumb.classList.add('active');
 
         const type = thumb.getAttribute('data-filter');
-        let filter = null;
-
-        switch(type) {
-            case 'grayscale': filter = new fabric.Image.filters.Grayscale(); break;
-            case 'sepia': filter = new fabric.Image.filters.Sepia(); break;
-            case 'invert': filter = new fabric.Image.filters.Invert(); break;
-            case 'blur': filter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
-            case 'pixelate': filter = new fabric.Image.filters.Pixelate({ blocksize: 6 }); break;
-            case 'sharpen': filter = new fabric.Image.filters.Convolute({ matrix: [0,-1,0,-1,5,-1,0,-1,0] }); break;
+        switch (type) {
+            case 'grayscale': activeFilter = new fabric.Image.filters.Grayscale(); break;
+            case 'sepia': activeFilter = new fabric.Image.filters.Sepia(); break;
+            case 'invert': activeFilter = new fabric.Image.filters.Invert(); break;
+            case 'blur': activeFilter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
+            case 'pixelate': activeFilter = new fabric.Image.filters.Pixelate({ blocksize: 6 }); break;
+            case 'sharpen': activeFilter = new fabric.Image.filters.Convolute({ matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0] }); break;
+            default: activeFilter = null; break;
         }
 
-        applyFilters(filter);
+        applyFilters();
     });
 });
+
+// Posuvníky
+document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
+    input.addEventListener('input', applyFilters);
+});
+
 
 // Drag / Pan
 let isDragging=false, lastPosX, lastPosY;
@@ -331,7 +336,15 @@ canvas.on('object:modified', () => {
         fitObjectToViewport(currentImage);
     }
     updateImageSize();
+    updateRotationAngle();
 });
+
+function updateRotationAngle() {
+    if (!currentImage) return;
+    const angle = Math.round(currentImage.angle || 0);
+    document.getElementById('rotationAngle').textContent = `Otočení: ${angle}°`;
+}
+
 </script>
 
 </x-layout>
