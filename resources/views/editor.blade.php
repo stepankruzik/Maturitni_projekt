@@ -66,16 +66,73 @@ const MAX_CANVAS_WIDTH = 900;
 const MAX_CANVAS_HEIGHT = 600;
 let previousAngle = 0;
 
+canvas.on("object:moving", function(e) {
+    if (!e.target) return;
+    keepInsideCanvas(e.target);
+});
+
+canvas.on('object:scaling', function(e) {
+    const obj = e.target;
+    if (!obj) return;
+
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+    const bound = obj.getBoundingRect(false); 
+
+    let newWidth = obj.width * obj.scaleX;
+    let newHeight = obj.height * obj.scaleY;
+
+    if (newWidth > canvasWidth) {
+        obj.scaleX = canvasWidth / obj.width;
+    }
+    if (newHeight > canvasHeight) {
+        obj.scaleY = canvasHeight / obj.height;
+    }
+
+    if (obj === currentImage) {
+        if (obj.width * obj.scaleX > originalImageWidth)
+            obj.scaleX = originalImageWidth / obj.width;
+        if (obj.height * obj.scaleY > originalImageHeight)
+            obj.scaleY = originalImageHeight / obj.height;
+
+    } else if (obj === cropRect) {
+        if (obj.width * obj.scaleX > originalCropWidth)
+            obj.scaleX = originalCropWidth / obj.width;
+        if (obj.height * obj.scaleY > originalCropHeight)
+            obj.scaleY = originalCropHeight / obj.height;
+    }
+
+    keepInsideCanvas(obj);
+
+    obj.setCoords();
+});
+
+
+
+
+canvas.on("object:rotating", function(e) {
+    if (!e.target) return;
+    keepInsideCanvas(e.target);
+});
+
+
+
 // Načtení obrázku z URL poslané z indexu
 const imageUrl = @json(request('path'));
 if (imageUrl) loadImage(imageUrl);
 
 // Funkce pro načtení obrázku do Fabric canvasu
+
+let originalImageWidth, originalImageHeight;
+let originalCropWidth, originalCropHeight;
+
 function loadImage(url) {
     fabric.Image.fromURL(url, (img) => {
         if (currentImage) canvas.remove(currentImage);
 
         currentImage = img;
+        originalImageWidth = img.width;
+        originalImageHeight = img.height;
         img.set({
             originX: 'center',
             originY: 'center',
@@ -102,6 +159,7 @@ function fitImageToCanvas(img) {
     img.top = canvas.height / 2;
     img.setCoords();
     canvas.requestRenderAll();
+    
 }
 
 // Zoom a centrování objektu
@@ -165,56 +223,58 @@ document.getElementById('toggleMode').addEventListener('click', () => {
 document.getElementById('cropBtn').addEventListener('click', () => {
     if (mode !== 'crop' || !cropRect || !currentImage) return;
 
-    const tempCanvas = document.createElement('canvas');
-    const ctx = tempCanvas.getContext('2d');
+    currentImage.cloneAsImage(function(imgWithFilter) {
+        const tempCanvas = document.createElement('canvas');
+        const ctx = tempCanvas.getContext('2d');
 
-    const imgEl = currentImage._element;
-    const width = imgEl.naturalWidth;
-    const height = imgEl.naturalHeight;
+        const width = imgWithFilter.width;
+        const height = imgWithFilter.height;
 
-    tempCanvas.width = width;
-    tempCanvas.height = height;
+        tempCanvas.width = width;
+        tempCanvas.height = height;
 
-    ctx.save();
-    ctx.translate(width/2, height/2);
-    ctx.rotate(currentImage.angle * Math.PI / 180);
-    ctx.scale(currentImage.scaleX, currentImage.scaleY);
-    ctx.drawImage(imgEl, -imgEl.width/2, -imgEl.height/2);
-    ctx.restore();
+        ctx.save();
+        ctx.translate(width/2, height/2);
+        ctx.rotate(currentImage.angle * Math.PI / 180);
+        ctx.scale(currentImage.scaleX, currentImage.scaleY);
+        ctx.drawImage(imgWithFilter._element, -imgWithFilter.width/2, -imgWithFilter.height/2);
+        ctx.restore();
 
-    const rect = cropRect.getBoundingRect(true);
-    const canvasCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+        const rect = cropRect.getBoundingRect(true);
+        const canvasCenter = { x: canvas.width / 2, y: canvas.height / 2 };
 
-    const cropX = rect.left - (canvasCenter.x - width/2);
-    const cropY = rect.top - (canvasCenter.y - height/2);
+        const cropX = rect.left - (canvasCenter.x - width/2);
+        const cropY = rect.top - (canvasCenter.y - height/2);
 
-    const croppedCanvas = document.createElement('canvas');
-    croppedCanvas.width = rect.width;
-    croppedCanvas.height = rect.height;
+        const croppedCanvas = document.createElement('canvas');
+        croppedCanvas.width = rect.width;
+        croppedCanvas.height = rect.height;
+        const croppedCtx = croppedCanvas.getContext('2d');
 
-    const croppedCtx = croppedCanvas.getContext('2d');
-    croppedCtx.drawImage(tempCanvas, cropX, cropY, rect.width, rect.height, 0, 0, rect.width, rect.height);
+        croppedCtx.drawImage(tempCanvas, cropX, cropY, rect.width, rect.height, 0, 0, rect.width, rect.height);
 
-    const croppedData = croppedCanvas.toDataURL('image/png');
+        const croppedData = croppedCanvas.toDataURL('image/png');
 
-    fabric.Image.fromURL(croppedData, (img) => {
-        canvas.clear();
-        currentImage = img;
-        img.set({
-            originX: 'center',
-            originY: 'center',
-            selectable: true,
-            hasRotatingPoint: true,
-            cornerStyle: 'circle'
+        fabric.Image.fromURL(croppedData, (img) => {
+            canvas.clear();
+            currentImage = img;
+            img.set({
+                originX: 'center',
+                originY: 'center',
+                selectable: true,
+                hasRotatingPoint: true,
+                cornerStyle: 'circle'
+            });
+            canvas.add(img);
+            fitImageToCanvas(img);
+            fitObjectToViewport(img);
+            cropRect = null;
+            mode = 'resize';
+            document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
         });
-        canvas.add(img);
-        fitImageToCanvas(img);
-        fitObjectToViewport(img);
-        cropRect = null;
-        mode = 'resize';
-        document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
     });
 });
+
 
 // Download
 document.getElementById('download').addEventListener('click', () => {
@@ -351,6 +411,42 @@ function updateRotationAngle() {
     if (!currentImage) return;
     const angle = Math.round(currentImage.angle || 0);
     document.getElementById('rotationAngle').textContent = `Otočení: ${angle}°`;
+}
+// aby crop a img nešel mimi canvas
+function keepInsideCanvas(obj) {
+    const padding = 0;
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+    const bound = obj.getBoundingRect(true, true);
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+    // horizontální omezení
+    if (bound.width <= canvasWidth) {
+        if (bound.left < padding) offsetX = padding - bound.left;
+        if (bound.left + bound.width > canvasWidth - padding)
+            offsetX = (canvasWidth - padding) - (bound.left + bound.width);
+    } else {
+        // pokud je širší než canvas, drž střed uvnitř
+        if (obj.left < canvasWidth/2) offsetX = (canvasWidth/2) - obj.left;
+        if (obj.left > canvasWidth/2) offsetX = (canvasWidth/2) - obj.left;
+    }
+
+    // vertikální omezení
+    if (bound.height <= canvasHeight) {
+        if (bound.top < padding) offsetY = padding - bound.top;
+        if (bound.top + bound.height > canvasHeight - padding)
+            offsetY = (canvasHeight - padding) - (bound.top + bound.height);
+    } else {
+        // pokud je vyšší než canvas, drž střed uvnitř
+        if (obj.top < canvasHeight/2) offsetY = (canvasHeight/2) - obj.top;
+        if (obj.top > canvasHeight/2) offsetY = (canvasHeight/2) - obj.top;
+    }
+
+    obj.left += offsetX;
+    obj.top += offsetY;
+    obj.setCoords();
 }
 
 </script>
