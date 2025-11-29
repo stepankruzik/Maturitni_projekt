@@ -354,13 +354,10 @@ document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input =
     input.addEventListener('input', applyFilters);
 });
 
-
-
 // Posuvníky
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
     input.addEventListener('input', applyFilters);
 });
-
 
 // Drag / Pan
 let isDragging=false, lastPosX, lastPosY;
@@ -412,7 +409,7 @@ function updateRotationAngle() {
     const angle = Math.round(currentImage.angle || 0);
     document.getElementById('rotationAngle').textContent = `Otočení: ${angle}°`;
 }
-// aby crop a img nešel mimi canvas
+// aby crop a img nešel mimo canvas
 function keepInsideCanvas(obj) {
     const padding = 0;
     const canvasWidth = canvas.getWidth();
