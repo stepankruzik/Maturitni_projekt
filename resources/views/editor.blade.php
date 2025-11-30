@@ -11,10 +11,55 @@
 
         <!-- Režimy a akce -->
         <div class="space-y-2 mb-4">
-            <button id="toggleMode" class="w-full px-4 py-2 bg-yellow-500 text-white rounded">Režim: Změnit velikost</button>
-            <button id="cropBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Oříznout</button>
-            <button id="download" class="w-full px-4 py-2 bg-green-500 text-white rounded">Stáhnout</button>
+           <button id="toggleMode" class="w-full px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
+        Režim: Změnit velikost
+    </button>
+    <button id="cropBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition">
+        Oříznout
+    </button>
+</div>
+
+<details open class="mb-4 bg-white rounded-lg shadow p-4">
+    <summary class="cursor-pointer font-bold text-lg text-green-700">
+        Nastavení Exportu
+    </summary>
+
+    <div class="space-y-3 mt-3">
+        <!-- Formát souboru -->
+        <div>
+            <label for="exportFormat" class="block text-sm font-medium text-gray-700 mb-1">
+                Formát souboru:
+            </label>
+            <select id="exportFormat" class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-green-500 focus:border-green-500">
+                <option value="png">PNG (bezeztrátový)</option>
+                <option value="jpeg">JPEG (menší velikost)</option>
+                <option value="webp">WEBP (webové stránky)</option>
+            </select>
         </div>
+
+        <!-- Obsah exportu -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Obsah exportu:
+            </label>
+            <div class="flex flex-col gap-2 bg-gray-50 p-3 rounded-md border border-gray-200">
+                <label class="inline-flex items-center">
+                    <input type="radio" name="exportContent" value="canvas" checked class="form-radio text-green-600">
+                    <span class="ml-2 text-sm">Celý Canvas (vč. pozadí 900x600)</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" name="exportContent" value="image" class="form-radio text-green-600">
+                    <span class="ml-2 text-sm">Jen obrázek (bez prázdného místa)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Tlačítko exportu -->
+        <button id="startDownloadBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
+            Stáhnout
+        </button>
+    </div>
+</details>
 
         <!-- Filtry -->
         <details open class="mb-4 bg-white rounded-lg shadow p-3">
@@ -65,7 +110,7 @@ let mode = 'resize';
 const MAX_CANVAS_WIDTH = 900;
 const MAX_CANVAS_HEIGHT = 600;
 let previousAngle = 0;
-
+/*
 canvas.on("object:moving", function(e) {
     if (!e.target) return;
     keepInsideCanvas(e.target);
@@ -115,7 +160,7 @@ canvas.on("object:rotating", function(e) {
     keepInsideCanvas(e.target);
 });
 
-
+*/
 
 // Načtení obrázku z URL poslané z indexu
 const imageUrl = @json(request('path'));
@@ -275,39 +320,6 @@ document.getElementById('cropBtn').addEventListener('click', () => {
     });
 });
 
-
-// Download
-document.getElementById('download').addEventListener('click', () => {
-    if (!currentImage) return;
-
-    const imgEl = currentImage._element;
-    let origW = imgEl.naturalWidth || currentImage.width * currentImage.scaleX;
-    let origH = imgEl.naturalHeight || currentImage.height * currentImage.scaleY;
-    const angle = (currentImage.angle || 0) * Math.PI / 180;
-    const absCos = Math.abs(Math.cos(angle));
-    const absSin = Math.abs(Math.sin(angle));
-    const boundsW = origW * absCos + origH * absSin;
-    const boundsH = origW * absSin + origH * absCos;
-
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = Math.round(boundsW);
-    exportCanvas.height = Math.round(boundsH);
-    const exportCtx = exportCanvas.getContext('2d');
-
-    exportCtx.save();
-    exportCtx.translate(exportCanvas.width/2, exportCanvas.height/2);
-    exportCtx.rotate(angle);
-    exportCtx.scale(currentImage.scaleX || 1, currentImage.scaleY || 1);
-    exportCtx.drawImage(imgEl, -imgEl.width/2, -imgEl.height/2);
-    exportCtx.restore();
-
-    const dataURL = exportCanvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = 'edited.png';
-    link.click();
-});
-
 // Filtry / Jas / Kontrast / Sytost
 let activeFilter = null;
 
@@ -445,6 +457,72 @@ function keepInsideCanvas(obj) {
     obj.top += offsetY;
     obj.setCoords();
 }
+
+// download
+document.getElementById('startDownloadBtn').addEventListener('click', () => {
+    if (!currentImage) {
+        alert("Nejdříve načtěte obrázek, který chcete exportovat!");
+        return;
+    }
+
+    const format = document.getElementById('exportFormat').value;
+    const contentType = document.querySelector('input[name="exportContent"]:checked').value;
+    const quality = 0.9;
+    const mimeType = `image/${format === 'jpeg' ? 'jpeg' : format === 'webp' ? 'webp' : 'png'}`;
+    let filename = `export.${format}`;
+    let dataURL;
+
+    if (contentType === 'canvas') {
+        filename = `canvas_export.${format}`;
+        dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
+
+    } 
+    else { 
+        filename = `image_only.${format}`;
+        const img = currentImage;
+
+        const finalW = img.getScaledWidth();
+        const finalH = img.getScaledHeight();
+        
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = Math.round(finalW);
+        exportCanvas.height = Math.round(finalH);
+        const exportCtx = exportCanvas.getContext('2d');
+        
+        
+        const originalScaleX = img.scaleX;
+        const originalScaleY = img.scaleY;
+        const originalAngle = img.angle;
+        
+        img.set({ scaleX: 1, scaleY: 1, angle: 0 });
+        img.setCoords();
+        
+        exportCtx.save();
+        exportCtx.translate(finalW / 2, finalH / 2);
+        exportCtx.rotate(originalAngle * Math.PI / 180);
+        exportCtx.scale(originalScaleX, originalScaleY);
+        
+        exportCtx.drawImage(
+            img._element, 
+            -img.width / 2, 
+            -img.height / 2, 
+            img.width, 
+            img.height
+        );
+        exportCtx.restore();
+
+        img.set({ scaleX: originalScaleX, scaleY: originalScaleY, angle: originalAngle });
+        img.setCoords();
+        canvas.renderAll(); 
+
+        dataURL = exportCanvas.toDataURL(mimeType, quality);
+    }
+    
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = filename;
+    link.click();
+});
 
 </script>
 

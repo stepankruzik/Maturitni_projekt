@@ -40,4 +40,5 @@ public function upload(Request $request)
     return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
 }
 
+
 }
