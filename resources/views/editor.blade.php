@@ -152,15 +152,26 @@ canvas.on('object:scaling', function(e) {
     obj.setCoords();
 });
 
-
-
+*/
 
 canvas.on("object:rotating", function(e) {
-    if (!e.target) return;
-    keepInsideCanvas(e.target);
+    const obj = e.target;
+    if (!obj) return;
+
+    const maxW = originalImageWidth;
+    const maxH = originalImageHeight;
+
+    const realW = obj.getScaledWidth();
+    const realH = obj.getScaledHeight();
+
+    if (realW > maxW) obj.scaleX *= maxW / realW;
+    if (realH > maxH) obj.scaleY *= maxH / realH;
+
+    obj.setCoords();
+    keepInsideCanvas(obj);
+    updateImageSize();
 });
 
-*/
 
 // Načtení obrázku z URL poslané z indexu
 const imageUrl = @json(request('path'));
@@ -266,59 +277,61 @@ document.getElementById('toggleMode').addEventListener('click', () => {
 
 // Crop obrázku
 document.getElementById('cropBtn').addEventListener('click', () => {
-    if (mode !== 'crop' || !cropRect || !currentImage) return;
+    if (!currentImage || !cropRect) return;
 
-    currentImage.cloneAsImage(function(imgWithFilter) {
-        const tempCanvas = document.createElement('canvas');
-        const ctx = tempCanvas.getContext('2d');
+    const img = currentImage;
+    const rect = cropRect;
 
-        const width = imgWithFilter.width;
-        const height = imgWithFilter.height;
+    const cropCenter = rect.getCenterPoint();
+    const localPoint = img.toLocalPoint(cropCenter, 'center', 'center');
 
-        tempCanvas.width = width;
-        tempCanvas.height = height;
+    const cropWidth = rect.width * rect.scaleX / img.scaleX;
+    const cropHeight = rect.height * rect.scaleY / img.scaleY;
 
-        ctx.save();
-        ctx.translate(width/2, height/2);
-        ctx.rotate(currentImage.angle * Math.PI / 180);
-        ctx.scale(currentImage.scaleX, currentImage.scaleY);
-        ctx.drawImage(imgWithFilter._element, -imgWithFilter.width/2, -imgWithFilter.height/2);
-        ctx.restore();
+    const left = (localPoint.x / img.scaleX) + (img.width / 2) - (cropWidth / 2);
+    const top = (localPoint.y / img.scaleY) + (img.height / 2) - (cropHeight / 2);
 
-        const rect = cropRect.getBoundingRect(true);
-        const canvasCenter = { x: canvas.width / 2, y: canvas.height / 2 };
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = cropWidth;
+    exportCanvas.height = cropHeight;
+    const ctx = exportCanvas.getContext("2d");
 
-        const cropX = rect.left - (canvasCenter.x - width/2);
-        const cropY = rect.top - (canvasCenter.y - height/2);
+    ctx.drawImage(
+        img._element,      
+        left, top,         
+        cropWidth, cropHeight,
+        0, 0,             
+        cropWidth, cropHeight 
+    );
 
-        const croppedCanvas = document.createElement('canvas');
-        croppedCanvas.width = rect.width;
-        croppedCanvas.height = rect.height;
-        const croppedCtx = croppedCanvas.getContext('2d');
+    const url = exportCanvas.toDataURL("image/png");
 
-        croppedCtx.drawImage(tempCanvas, cropX, cropY, rect.width, rect.height, 0, 0, rect.width, rect.height);
+    fabric.Image.fromURL(url, newImg => {
+        canvas.clear();
+        currentImage = newImg;
 
-        const croppedData = croppedCanvas.toDataURL('image/png');
-
-        fabric.Image.fromURL(croppedData, (img) => {
-            canvas.clear();
-            currentImage = img;
-            img.set({
-                originX: 'center',
-                originY: 'center',
-                selectable: true,
-                hasRotatingPoint: true,
-                cornerStyle: 'circle'
-            });
-            canvas.add(img);
-            fitImageToCanvas(img);
-            fitObjectToViewport(img);
-            cropRect = null;
-            mode = 'resize';
-            document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
+        newImg.set({
+            originX: 'center',
+            originY: 'center',
+            selectable: true,
+            hasRotatingPoint: true,
+            cornerStyle: 'circle'
         });
+
+        canvas.add(newImg);
+        
+        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        fitImageToCanvas(newImg);
+        fitObjectToViewport(newImg);
+        updateImageSize();
+
+        cropRect = null;
+        mode = 'resize';
+        document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
+        canvas.selection = true;
     });
 });
+
 
 // Filtry / Jas / Kontrast / Sytost
 let activeFilter = null;
