@@ -1,5 +1,11 @@
 <x-layout>
     <x-slot:heading>Editor obrázku</x-slot:heading>
+    <div class="flex gap-2 mb-4">
+        <button class="tab-btn px-3 py-1 bg-blue-500 text-white rounded" data-target="panelResize">Resize/Ořez</button>
+        <button class="tab-btn px-3 py-1 bg-green-500 text-white rounded" data-target="panelFilters">Filtry</button>
+        <button class="tab-btn px-3 py-1 bg-orange-500 text-white rounded" data-target="panelDownload">Export</button>
+        <button class="tab-btn px-3 py-1 bg-red-500 text-white rounded" data-target="panelLevels">Úrovně</button>
+    </div>
 
     <div class="flex h-screen">
     <!-- Sidebar vlevo -->
@@ -9,90 +15,76 @@
         <p id="imageSize" class="text-gray-600 font-semibold mb-1"></p>
         <p id="rotationAngle" class="text-gray-600 font-semibold mb-3"></p>
 
-        <!-- Režimy a akce -->
+    <div id="panelResize" class="tab-panel">
         <div class="space-y-2 mb-4">
-           <button id="toggleMode" class="w-full px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
-        Režim: Změnit velikost
-    </button>
-    <button id="cropBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition">
-        Oříznout
-    </button>
-</div>
-
-<details open class="mb-4 bg-white rounded-lg shadow p-4">
-    <summary class="cursor-pointer font-bold text-lg text-green-700">
-        Nastavení Exportu
-    </summary>
-
-    <div class="space-y-3 mt-3">
-        <!-- Formát souboru -->
-        <div>
-            <label for="exportFormat" class="block text-sm font-medium text-gray-700 mb-1">
-                Formát souboru:
-            </label>
-            <select id="exportFormat" class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-green-500 focus:border-green-500">
-                <option value="png">PNG (bezeztrátový)</option>
-                <option value="jpeg">JPEG (menší velikost)</option>
-                <option value="webp">WEBP (webové stránky)</option>
-            </select>
+            <button id="toggleMode" class="w-full px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition">
+                Režim: Změnit velikost
+            </button>
+            <button id="cropBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition">
+                Oříznout
+            </button>
         </div>
-
-        <!-- Obsah exportu -->
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Obsah exportu:
-            </label>
-            <div class="flex flex-col gap-2 bg-gray-50 p-3 rounded-md border border-gray-200">
-                <label class="inline-flex items-center">
-                    <input type="radio" name="exportContent" value="canvas" checked class="form-radio text-green-600">
-                    <span class="ml-2 text-sm">Celý Canvas (vč. pozadí 900x600)</span>
-                </label>
-                <label class="inline-flex items-center">
-                    <input type="radio" name="exportContent" value="image" class="form-radio text-green-600">
-                    <span class="ml-2 text-sm">Jen obrázek (bez prázdného místa)</span>
-                </label>
-            </div>
-        </div>
-
-        <!-- Tlačítko exportu -->
-        <button id="startDownloadBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
-            Stáhnout
-        </button>
     </div>
-</details>
 
-        <!-- Filtry -->
-        <details open class="mb-4 bg-white rounded-lg shadow p-3">
-            <summary class="cursor-pointer font-medium">Filtry</summary>
-            <div id="filterPreview" class="flex flex-wrap gap-2 mt-2">
-    <img src="/thumbnails/original.png" class="filter-thumb" data-filter="original">
-    <img src="/thumbnails/grayscale.png" class="filter-thumb" data-filter="grayscale">
-    <img src="/thumbnails/sepia.png" class="filter-thumb" data-filter="sepia">
-    <img src="/thumbnails/invert.png" class="filter-thumb" data-filter="invert">
-    <img src="/thumbnails/blur.png" class="filter-thumb" data-filter="blur">
-    <img src="/thumbnails/sharpen.png" class="filter-thumb" data-filter="sharpen">
-</div>
-        </details>
+    <div id="panelFilters" class="tab-panel hidden">
+        <div id="filterPreview" class="flex flex-wrap gap-2 mt-2">
+            <img src="/thumbnails/original.png" class="filter-thumb" data-filter="original">
+            <img src="/thumbnails/grayscale.png" class="filter-thumb" data-filter="grayscale">
+            <img src="/thumbnails/sepia.png" class="filter-thumb" data-filter="sepia">
+            <img src="/thumbnails/invert.png" class="filter-thumb" data-filter="invert">
+            <img src="/thumbnails/blur.png" class="filter-thumb" data-filter="blur">
+            <img src="/thumbnails/sharpen.png" class="filter-thumb" data-filter="sharpen">
+        </div>
+    </div>
 
-        <!-- Jas / Kontrast / Sytost -->
-        <details open class="bg-white rounded-lg shadow p-3">
-            <summary class="cursor-pointer font-medium">Úrovně</summary>
-            <div class="space-y-3 mt-2">
-                <label class="flex items-center gap-2">
-                    Jas:
-                    <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0" class="w-full">
-                </label>
-                <label class="flex items-center gap-2">
-                    Kontrast:
-                    <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0" class="w-full">
-                </label>
-                <label class="flex items-center gap-2">
-                    Sytost:
-                    <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0" class="w-full">
-                </label>
+    <div id="panelDownload" class="tab-panel hidden">
+        <details open class="mb-4 bg-white rounded-lg shadow p-4">
+            <summary class="cursor-pointer font-bold text-lg text-green-700">
+                Nastavení Exportu
+            </summary>
+            <div class="space-y-3 mt-3">
+                <div>
+                    <label for="exportFormat" class="block text-sm font-medium text-gray-700 mb-1">Formát souboru:</label>
+                    <select id="exportFormat" class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-green-500 focus:border-green-500">
+                        <option value="png">PNG (bezeztrátový)</option>
+                        <option value="jpeg">JPEG (menší velikost)</option>
+                        <option value="webp">WEBP (webové stránky)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Obsah exportu:</label>
+                    <div class="flex flex-col gap-2 bg-gray-50 p-3 rounded-md border border-gray-200">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="exportContent" value="canvas" checked class="form-radio text-green-600">
+                            <span class="ml-2 text-sm">Celý Canvas</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="exportContent" value="image" class="form-radio text-green-600">
+                            <span class="ml-2 text-sm">Jen obrázek</span>
+                        </label>
+                    </div>
+                </div>
+                <button id="startDownloadBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
+                    Stáhnout
+                </button>
             </div>
         </details>
     </div>
+
+    <div id="panelLevels" class="tab-panel hidden">
+        <div class="space-y-3 mt-2">
+            <label class="flex items-center gap-2">Jas:
+                <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0" class="w-full">
+            </label>
+            <label class="flex items-center gap-2">Kontrast:
+                <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0" class="w-full">
+            </label>
+            <label class="flex items-center gap-2">Sytost:
+                <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0" class="w-full">
+            </label>
+        </div>
+    </div>
+</div>
 
     <!-- Canvas vpravo -->
     <div class="flex-1 flex justify-center items-center bg-gray-50">
@@ -536,6 +528,15 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     link.download = filename;
     link.click();
 });
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const target = btn.dataset.target;
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+        document.getElementById(target).classList.remove('hidden');
+    });
+});
+
 
 </script>
 
