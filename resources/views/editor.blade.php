@@ -5,6 +5,9 @@
         <button class="tab-btn px-3 py-1 bg-green-500 text-white rounded" data-target="panelFilters">Filtry</button>
         <button class="tab-btn px-3 py-1 bg-orange-500 text-white rounded" data-target="panelDownload">Export</button>
         <button class="tab-btn px-3 py-1 bg-red-500 text-white rounded" data-target="panelLevels">Úrovně</button>
+        <button class="tab-btn px-3 py-1 bg-indigo-500 text-white rounded" data-target="panelDraw">Kreslení
+</button>
+
     </div>
 
     <div class="flex h-screen">
@@ -84,6 +87,28 @@
             </label>
         </div>
     </div>
+
+    <div id="panelDraw" class="tab-panel hidden">
+    <div class="space-y-2">
+        <button id="drawLineBtn" class="w-full px-4 py-2 bg-blue-500 text-white rounded">
+            Čára
+        </button>
+
+        <button id="drawCircleBtn" class="w-full px-4 py-2 bg-green-500 text-white rounded">
+            Kruh
+        </button>
+
+        <button id="drawAngleBtn" class="w-full px-4 py-2 bg-red-500 text-white rounded">
+            Úhel
+        </button>
+
+        <button id="drawSelectBtn" class="w-full px-4 py-2 bg-gray-700 text-white rounded">
+            Výběr
+        </button>
+
+    </div>
+</div>
+
 </div>
 
     <!-- Canvas vpravo -->
@@ -102,6 +127,166 @@ let mode = 'resize';
 const MAX_CANVAS_WIDTH = 900;
 const MAX_CANVAS_HEIGHT = 600;
 let previousAngle = 0;
+//kresleni
+let isPanning = false;
+let isDown = false;
+let lastPosX, lastPosY;
+
+let drawMode = null; // 'line' | 'circle' | 'angle'
+let line, circle;
+let origX, origY;
+
+canvas.on('mouse:down', (o) => {
+    const e = o.e;
+    const pointer = canvas.getPointer(e);
+
+       // ignorovat blank obrázky
+    const target = canvas.findTarget(e);
+    if (target && target._element?.src?.includes('blank_')) {
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+        return; 
+    }
+
+    //  KRESLENÍ
+    if (drawMode) {
+        isDown = true;
+
+        if (drawMode === 'line' || drawMode === 'angle') {
+           line = new fabric.Line(
+    [pointer.x, pointer.y, pointer.x, pointer.y],
+    {
+        strokeWidth: 2,
+        stroke: drawMode === 'angle' ? 'red' : 'yellow',
+        selectable: false,
+        evented: false
+    }
+);
+
+            canvas.add(line);
+        }
+
+        if (drawMode === 'circle') {
+            origX = pointer.x;
+            origY = pointer.y;
+
+            circle = new fabric.Circle({
+                left: origX,
+                top: origY,
+                originX: 'left',
+                originY: 'top',
+                radius: 1,
+                fill: '',
+                stroke: 'blue',
+                strokeWidth: 2,
+                selectable: false,
+                evented: false
+            });
+            canvas.add(circle);
+        }
+
+        return;
+    }
+
+    //  PAN (ALT + drag)
+    if (e.altKey) {
+        isPanning = true;
+        canvas.selection = false;
+        lastPosX = e.clientX;
+        lastPosY = e.clientY;
+    }
+});
+
+canvas.on('mouse:move', (o) => {
+    const e = o.e;
+    const pointer = canvas.getPointer(e);
+
+    //  KRESLENÍ
+    if (drawMode && isDown) {
+        if (drawMode === 'line' || drawMode === 'angle') {
+            line.set({ x2: pointer.x, y2: pointer.y });
+        }
+
+        if (drawMode === 'circle') {
+            const radius = Math.max(
+                Math.abs(pointer.x - origX),
+                Math.abs(pointer.y - origY)
+            ) / 2;
+
+            circle.set({
+                radius,
+                left: Math.min(pointer.x, origX),
+                top: Math.min(pointer.y, origY)
+            });
+        }
+
+        canvas.requestRenderAll();
+        return;
+    }
+
+    //  PAN
+    if (isPanning) {
+        const vpt = canvas.viewportTransform;
+        vpt[4] += e.clientX - lastPosX;
+        vpt[5] += e.clientY - lastPosY;
+        canvas.requestRenderAll();
+
+        lastPosX = e.clientX;
+        lastPosY = e.clientY;
+    }
+});
+
+canvas.on('mouse:up', () => {
+
+    //  konec kreslení
+    if (drawMode && isDown) {
+        if (drawMode === 'angle' && line) {
+            const dx = line.x2 - line.x1;
+            const dy = line.y2 - line.y1;
+            let theta = Math.atan2(dy, dx) * 180 / Math.PI;
+            if (theta < 0) theta += 360;
+
+            const text = new fabric.Text(Math.round(theta) + '°', {
+                left: line.x2 + 5,
+                top: line.y2 + 5,
+                fontSize: 18,
+                fill: 'red',
+                selectable: false,
+                evented: false
+            });
+
+            canvas.add(text);
+        }
+        
+        if (line) {
+    line.set({
+        selectable: true,
+        evented: true
+    });
+    canvas.setActiveObject(line);
+    canvas.setActiveObject(line);
+    line = null;
+}
+
+if (circle) {
+   circle.set({
+    selectable: true,
+    evented: true
+});
+
+    canvas.setActiveObject(circle);
+    circle = null;
+}
+
+        isDown = false;
+    }
+
+    // konec panu
+    isPanning = false;
+    canvas.selection = true;
+});
+
+
 /*
 canvas.on("object:moving", function(e) {
     if (!e.target) return;
@@ -181,14 +366,25 @@ function loadImage(url) {
         currentImage = img;
         originalImageWidth = img.width;
         originalImageHeight = img.height;
-        img.set({
-            originX: 'center',
-            originY: 'center',
-            selectable: true,
-            hasRotatingPoint: true,
-            cornerStyle: 'circle'
-        });
+
+     const isBlank = url.includes('blank_');
+img.set({
+    originX: 'center',
+    originY: 'center',
+    selectable: !isBlank, // pokud je blank, není selectovatelné
+    evented: !isBlank,    // pokud je blank, nereaguje na události
+    lockMovementX: isBlank,
+    lockMovementY: isBlank,
+    lockScalingX: isBlank,
+    lockScalingY: isBlank,
+    lockRotation: isBlank,
+    hasRotatingPoint: !isBlank,
+    cornerStyle: 'circle'
+});
+if (isBlank) img.sendToBack(); 
+
         canvas.add(img);
+
 
         fitImageToCanvas(img);
         fitObjectToViewport(img);
@@ -377,7 +573,7 @@ document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input =
 });
 
 // Drag / Pan
-let isDragging=false, lastPosX, lastPosY;
+/*let isDragging=false, lastPosX, lastPosY;
 canvas.on('mouse:down', opt => {
     const evt = opt.e;
     if (evt.altKey) {
@@ -400,7 +596,7 @@ canvas.on('mouse:move', opt => {
 canvas.on('mouse:up', () => {
     isDragging = false;
     canvas.selection = true;
-});
+});*/
 
 // Update size label
 function updateImageSize() {
@@ -531,11 +727,97 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        const target = btn.dataset.target;
-        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
-        document.getElementById(target).classList.remove('hidden');
+
+        // vypnout kreslení
+        drawMode = null;
+        isDown = false;
+
+        // vypnout crop
+        if (cropRect) {
+            canvas.remove(cropRect);
+            cropRect = null;
+            mode = 'resize';
+            document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
+        }
+
+        canvas.selection = true;
+
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.getElementById(btn.dataset.target).classList.remove('hidden');
     });
 });
+
+
+
+function enableDrawing(mode) {
+    drawMode = mode;
+    canvas.selection = false;
+    canvas.discardActiveObject();
+    lockImage(true);
+
+    if (currentImage) {
+        currentImage.selectable = false;
+        currentImage.evented = false;
+    }
+}
+
+
+document.getElementById('drawLineBtn').onclick = () => enableDrawing('line');
+document.getElementById('drawCircleBtn').onclick = () => enableDrawing('circle');
+document.getElementById('drawAngleBtn').onclick = () => enableDrawing('angle');
+document.getElementById('drawSelectBtn').onclick = () => {
+    drawMode = null;          // vypne kreslení
+    canvas.selection = true;  // povolí výběr ostatních objektů
+    lockImage(false);         // odemkne hlavní obrázek
+
+    // povolí výběr a události jen pro objekty, které nejsou blank
+    canvas.getObjects().forEach(obj => {
+        const isBlank = obj._element?.src?.includes('blank_');
+        if (!isBlank) {
+            obj.selectable = true;
+            obj.evented = true;
+        } else {
+            // zablokuje vše pro blank
+            obj.selectable = false;
+            obj.evented = false;
+        }
+    });
+
+    canvas.discardActiveObject(); // zruší aktivní výběr, aby se blank nevybral
+    canvas.requestRenderAll();
+};
+
+
+//zamknutí obrázku
+function lockImage(lock = true) {
+    if (!currentImage) return;
+
+    currentImage.set({
+        selectable: !lock,
+        evented: !lock,
+        lockMovementX: lock,
+        lockMovementY: lock,
+        lockScalingX: lock,
+        lockScalingY: lock,
+        lockRotation: lock
+    });
+}
+//odstranění objektu klávesou Delete/Backspace
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        const activeObj = canvas.getActiveObject();
+        if (!activeObj) return;
+
+        const isBlank = activeObj._element?.src?.includes('blank_');
+        if (!isBlank) {
+            canvas.remove(activeObj);
+        }
+
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+    }
+});
+
 
 
 </script>
