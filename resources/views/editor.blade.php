@@ -89,23 +89,24 @@
     </div>
 
     <div id="panelDraw" class="tab-panel hidden">
+    <div class="mb-4 space-y-2">
+        <label class="block text-sm font-medium text-gray-700">
+            Výplň:
+            <input type="color" id="fillColor" value="#ffffff" class="w-full h-10 rounded border border-gray-300 cursor-pointer">
+            <input type="checkbox" id="fillTransparent" class="mt-1"> Průhledná
+        </label>
+
+        <label class="block text-sm font-medium text-gray-700">
+            Obrys:
+            <input type="color" id="drawColor" value="#ff0000" class="w-full h-10 rounded border border-gray-300 cursor-pointer">
+        </label>
+    </div>
+
     <div class="space-y-2">
-        <button id="drawLineBtn" class="w-full px-4 py-2 bg-blue-500 text-white rounded">
-            Čára
-        </button>
-
-        <button id="drawCircleBtn" class="w-full px-4 py-2 bg-green-500 text-white rounded">
-            Kruh
-        </button>
-
-        <button id="drawAngleBtn" class="w-full px-4 py-2 bg-red-500 text-white rounded">
-            Úhel
-        </button>
-
-        <button id="drawSelectBtn" class="w-full px-4 py-2 bg-gray-700 text-white rounded">
-            Výběr
-        </button>
-
+        <button id="drawLineBtn" class="w-full px-4 py-2 bg-blue-500 text-white rounded">Čára</button>
+        <button id="drawCircleBtn" class="w-full px-4 py-2 bg-green-500 text-white rounded">Kruh</button>
+        <button id="drawRectBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Čtverec</button>
+        <button id="drawSelectBtn" class="w-full px-4 py-2 bg-gray-700 text-white rounded">Výběr</button>
     </div>
 </div>
 
@@ -152,12 +153,12 @@ canvas.on('mouse:down', (o) => {
     if (drawMode) {
         isDown = true;
 
-        if (drawMode === 'line' || drawMode === 'angle') {
+        if (drawMode === 'line') {
            line = new fabric.Line(
     [pointer.x, pointer.y, pointer.x, pointer.y],
     {
         strokeWidth: 2,
-        stroke: drawMode === 'angle' ? 'red' : 'yellow',
+        stroke: getStrokeColor(),
         selectable: false,
         evented: false
     }
@@ -171,19 +172,39 @@ canvas.on('mouse:down', (o) => {
             origY = pointer.y;
 
             circle = new fabric.Circle({
-                left: origX,
-                top: origY,
-                originX: 'left',
-                originY: 'top',
-                radius: 1,
-                fill: '',
-                stroke: 'blue',
-                strokeWidth: 2,
-                selectable: false,
-                evented: false
-            });
+    left: origX,
+    top: origY,
+    originX: 'left',
+    originY: 'top',
+    radius: 1,
+    fill: getFillColor(),
+    stroke: getStrokeColor(),
+    strokeWidth: 2,
+    selectable: false,
+    evented: false
+});
             canvas.add(circle);
         }
+
+        if (drawMode === 'rect') {
+    isDown = true;
+    origX = pointer.x;
+    origY = pointer.y;
+
+    rect = new fabric.Rect({
+    left: origX,
+    top: origY,
+    width: 1,
+    height: 1,
+    fill: getFillColor(),
+    stroke: getStrokeColor(),
+    strokeWidth: 2,
+    selectable: false,
+    evented: false
+});
+
+    canvas.add(rect);
+}
 
         return;
     }
@@ -219,6 +240,20 @@ canvas.on('mouse:move', (o) => {
                 top: Math.min(pointer.y, origY)
             });
         }
+
+        if (drawMode === 'rect' && isDown) {
+    const width = pointer.x - origX;
+    const height = pointer.y - origY;
+
+    rect.set({
+        width: Math.abs(width),
+        height: Math.abs(height),
+        left: width < 0 ? pointer.x : origX,
+        top: height < 0 ? pointer.y : origY
+    });
+
+    canvas.requestRenderAll();
+}
 
         canvas.requestRenderAll();
         return;
@@ -276,6 +311,16 @@ if (circle) {
 
     canvas.setActiveObject(circle);
     circle = null;
+}
+
+if (drawMode === 'rect' && rect) {
+    rect.set({
+        selectable: true,
+        evented: true
+    });
+    canvas.setActiveObject(rect);
+    rect = null;
+    isDown = false;
 }
 
         isDown = false;
@@ -725,6 +770,14 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     link.click();
 });
 
+function getFillColor() {
+    return document.getElementById('fillTransparent').checked ? '' : document.getElementById('fillColor').value;
+}
+
+function getStrokeColor() {
+    return document.getElementById('drawColor').value;
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
 
@@ -764,7 +817,7 @@ function enableDrawing(mode) {
 
 document.getElementById('drawLineBtn').onclick = () => enableDrawing('line');
 document.getElementById('drawCircleBtn').onclick = () => enableDrawing('circle');
-document.getElementById('drawAngleBtn').onclick = () => enableDrawing('angle');
+document.getElementById('drawRectBtn').onclick = () => enableDrawing('rect');
 document.getElementById('drawSelectBtn').onclick = () => {
     drawMode = null;          // vypne kreslení
     canvas.selection = true;  // povolí výběr ostatních objektů
