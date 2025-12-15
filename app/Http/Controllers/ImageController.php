@@ -9,13 +9,17 @@ class ImageController extends Controller
 public function upload(Request $request)
 {
     $request->validate([
-        'image' => 'required|image|max:10240',
+        'image' => [
+            'required',
+            'image',
+            'max:10240', // Max. 10MB
+            'dimensions:max_width=3840,max_height=2160', // Max. 4K
+        ],
     ]);
 
     $file = $request->file('image');
     $filename = uniqid() . '.' . $file->getClientOriginalExtension();
 
-    // uložíme rovnou do public/uploads
     $file->move(public_path('uploads'), $filename);
 
     return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
@@ -24,8 +28,16 @@ public function upload(Request $request)
 
    public function createBlank(Request $request)
 {
-    $width = $request->input('width', 500);
-    $height = $request->input('height', 500);
+
+    $maxWidth = 3840;
+    $maxHeight = 2160;
+
+    $width = min((int)$request->input('width', 500), $maxWidth);
+    $height = min((int)$request->input('height', 500), $maxHeight);
+
+    if ($request->input('width') > $maxWidth || $request->input('height') > $maxHeight) {
+        return redirect()->back()->withErrors(['message' => 'Maximální velikost plátna je 3840x2160 px (4K). Zvolené rozměry byly automaticky sníženy.']);
+    }
 
     $image = imagecreatetruecolor($width, $height);
     $white = imagecolorallocate($image, 255, 255, 255);

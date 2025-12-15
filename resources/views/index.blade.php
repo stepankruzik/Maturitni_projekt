@@ -181,11 +181,25 @@
     const templateButtons = document.querySelectorAll('[data-width][data-height]');
     const widthInput = document.querySelector('input[name="width"]');
     const heightInput = document.querySelector('input[name="height"]');
+    
+    const createBlankForm = document.querySelector('form[action="{{ route('createBlank') }}"]');
+
+    
 
     templateButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            widthInput.value = btn.getAttribute('data-width');
-            heightInput.value = btn.getAttribute('data-height');
+            
+            const width = btn.getAttribute('data-width');
+            const height = btn.getAttribute('data-height');
+            
+            widthInput.value = width;
+            heightInput.value = height;
+
+            if (createBlankForm) {
+                createBlankForm.submit();
+            } else {
+                console.error('Formulář pro vytvoření prázdného plátna nebyl nalezen!');
+            }
         });
     });
 </script>
