@@ -723,46 +723,42 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
         dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
 
     } 
-    else { 
-        filename = `image_only.${format}`;
-        const img = currentImage;
+    else {
+    filename = `image_only.${format}`;
+    const img = currentImage;
 
-        const finalW = img.getScaledWidth();
-        const finalH = img.getScaledHeight();
-        
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = Math.round(finalW);
-        exportCanvas.height = Math.round(finalH);
-        const exportCtx = exportCanvas.getContext('2d');
-        
-        
-        const originalScaleX = img.scaleX;
-        const originalScaleY = img.scaleY;
-        const originalAngle = img.angle;
-        
-        img.set({ scaleX: 1, scaleY: 1, angle: 0 });
-        img.setCoords();
-        
-        exportCtx.save();
-        exportCtx.translate(finalW / 2, finalH / 2);
-        exportCtx.rotate(originalAngle * Math.PI / 180);
-        exportCtx.scale(originalScaleX, originalScaleY);
-        
-        exportCtx.drawImage(
-            img._element, 
-            -img.width / 2, 
-            -img.height / 2, 
-            img.width, 
-            img.height
-        );
-        exportCtx.restore();
+    const angle = img.angle || 0;
+    const rad = fabric.util.degreesToRadians(angle);
 
-        img.set({ scaleX: originalScaleX, scaleY: originalScaleY, angle: originalAngle });
-        img.setCoords();
-        canvas.renderAll(); 
+    const w = img.width * img.scaleX;
+    const h = img.height * img.scaleY;
 
-        dataURL = exportCanvas.toDataURL(mimeType, quality);
-    }
+    // spočítáme bounding box otočeného obrázku
+    const bboxWidth = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad));
+    const bboxHeight = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.ceil(bboxWidth);
+    exportCanvas.height = Math.ceil(bboxHeight);
+
+    const ctx = exportCanvas.getContext('2d');
+
+    ctx.save();
+    ctx.translate(exportCanvas.width / 2, exportCanvas.height / 2);
+    ctx.rotate(rad);
+
+    ctx.drawImage(
+        img._element,
+        -w / 2,
+        -h / 2,
+        w,
+        h
+    );
+
+    ctx.restore();
+
+    dataURL = exportCanvas.toDataURL(mimeType, quality);
+}
     
     const link = document.createElement('a');
     link.href = dataURL;
