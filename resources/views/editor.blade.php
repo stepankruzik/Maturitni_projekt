@@ -141,80 +141,55 @@ canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
 
-       // ignorovat blank obrázky
-    const target = canvas.findTarget(e);
-    if (target && target._element?.src?.includes('blank_')) {
-        canvas.discardActiveObject();
-        canvas.requestRenderAll();
-        return; 
-    }
-
-    //  KRESLENÍ
     if (drawMode) {
         isDown = true;
 
         if (drawMode === 'line') {
-           line = new fabric.Line(
-    [pointer.x, pointer.y, pointer.x, pointer.y],
-    {
-        strokeWidth: 2,
-        stroke: getStrokeColor(),
-        selectable: false,
-        evented: false
-    }
-);
-
+            line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
+                strokeWidth: 2,
+                stroke: getStrokeColor(),
+                selectable: false,
+                evented: false
+            });
             canvas.add(line);
         }
 
         if (drawMode === 'circle') {
             origX = pointer.x;
             origY = pointer.y;
-
             circle = new fabric.Circle({
-    left: origX,
-    top: origY,
-    originX: 'left',
-    originY: 'top',
-    radius: 1,
-    fill: getFillColor(),
-    stroke: getStrokeColor(),
-    strokeWidth: 2,
-    selectable: false,
-    evented: false
-});
+                left: origX,
+                top: origY,
+                originX: 'left',
+                originY: 'top',
+                radius: 1,
+                fill: getFillColor(),
+                stroke: getStrokeColor(),
+                strokeWidth: 2,
+                selectable: false,
+                evented: false
+            });
             canvas.add(circle);
         }
 
         if (drawMode === 'rect') {
-    isDown = true;
-    origX = pointer.x;
-    origY = pointer.y;
-
-    rect = new fabric.Rect({
-    left: origX,
-    top: origY,
-    width: 1,
-    height: 1,
-    fill: getFillColor(),
-    stroke: getStrokeColor(),
-    strokeWidth: 2,
-    selectable: false,
-    evented: false
-});
-
-    canvas.add(rect);
-}
+            origX = pointer.x;
+            origY = pointer.y;
+            rect = new fabric.Rect({
+                left: origX,
+                top: origY,
+                width: 1,
+                height: 1,
+                fill: getFillColor(),
+                stroke: getStrokeColor(),
+                strokeWidth: 2,
+                selectable: false,
+                evented: false
+            });
+            canvas.add(rect);
+        }
 
         return;
-    }
-
-    //  PAN (ALT + drag)
-    if (e.altKey) {
-        isPanning = true;
-        canvas.selection = false;
-        lastPosX = e.clientX;
-        lastPosY = e.clientY;
     }
 });
 
@@ -272,65 +247,16 @@ canvas.on('mouse:move', (o) => {
 });
 
 canvas.on('mouse:up', () => {
-
-    //  konec kreslení
     if (drawMode && isDown) {
-        if (drawMode === 'angle' && line) {
-            const dx = line.x2 - line.x1;
-            const dy = line.y2 - line.y1;
-            let theta = Math.atan2(dy, dx) * 180 / Math.PI;
-            if (theta < 0) theta += 360;
-
-            const text = new fabric.Text(Math.round(theta) + '°', {
-                left: line.x2 + 5,
-                top: line.y2 + 5,
-                fontSize: 18,
-                fill: 'red',
-                selectable: false,
-                evented: false
-            });
-
-            canvas.add(text);
-        }
-        
-        if (line) {
-    line.set({
-        selectable: true,
-        evented: true
-    });
-    canvas.setActiveObject(line);
-    canvas.setActiveObject(line);
-    line = null;
-}
-
-if (circle) {
-   circle.set({
-    selectable: true,
-    evented: true
-});
-
-    canvas.setActiveObject(circle);
-    circle = null;
-}
-
-if (drawMode === 'rect' && rect) {
-    rect.set({
-        selectable: true,
-        evented: true
-    });
-    canvas.setActiveObject(rect);
-    rect = null;
-    isDown = false;
-}
-
+        // kreslené tvary zůstávají locked, obrázek selectable
+        line = null;
+        circle = null;
+        rect = null;
         isDown = false;
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
     }
-
-    // konec panu
-    isPanning = false;
-    canvas.selection = true;
 });
-
 
 /*
 canvas.on("object:moving", function(e) {
@@ -723,42 +649,46 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
         dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
 
     } 
-    else {
-    filename = `image_only.${format}`;
-    const img = currentImage;
+    else { 
+        filename = `image_only.${format}`;
+        const img = currentImage;
 
-    const angle = img.angle || 0;
-    const rad = fabric.util.degreesToRadians(angle);
+        const finalW = img.getScaledWidth();
+        const finalH = img.getScaledHeight();
+        
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = Math.round(finalW);
+        exportCanvas.height = Math.round(finalH);
+        const exportCtx = exportCanvas.getContext('2d');
+        
+        
+        const originalScaleX = img.scaleX;
+        const originalScaleY = img.scaleY;
+        const originalAngle = img.angle;
+        
+        img.set({ scaleX: 1, scaleY: 1, angle: 0 });
+        img.setCoords();
+        
+        exportCtx.save();
+        exportCtx.translate(finalW / 2, finalH / 2);
+        exportCtx.rotate(originalAngle * Math.PI / 180);
+        exportCtx.scale(originalScaleX, originalScaleY);
+        
+        exportCtx.drawImage(
+            img._element, 
+            -img.width / 2, 
+            -img.height / 2, 
+            img.width, 
+            img.height
+        );
+        exportCtx.restore();
 
-    const w = img.width * img.scaleX;
-    const h = img.height * img.scaleY;
+        img.set({ scaleX: originalScaleX, scaleY: originalScaleY, angle: originalAngle });
+        img.setCoords();
+        canvas.renderAll(); 
 
-    // spočítáme bounding box otočeného obrázku
-    const bboxWidth = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad));
-    const bboxHeight = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
-
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = Math.ceil(bboxWidth);
-    exportCanvas.height = Math.ceil(bboxHeight);
-
-    const ctx = exportCanvas.getContext('2d');
-
-    ctx.save();
-    ctx.translate(exportCanvas.width / 2, exportCanvas.height / 2);
-    ctx.rotate(rad);
-
-    ctx.drawImage(
-        img._element,
-        -w / 2,
-        -h / 2,
-        w,
-        h
-    );
-
-    ctx.restore();
-
-    dataURL = exportCanvas.toDataURL(mimeType, quality);
-}
+        dataURL = exportCanvas.toDataURL(mimeType, quality);
+    }
     
     const link = document.createElement('a');
     link.href = dataURL;
@@ -802,11 +732,11 @@ function enableDrawing(mode) {
     drawMode = mode;
     canvas.selection = false;
     canvas.discardActiveObject();
-    lockImage(true);
 
     if (currentImage) {
-        currentImage.selectable = false;
-        currentImage.evented = false;
+        const isBlank = currentImage._element?.src?.includes('blank_');
+        currentImage.selectable = !isBlank;
+        currentImage.evented = !isBlank;
     }
 }
 
@@ -815,24 +745,16 @@ document.getElementById('drawLineBtn').onclick = () => enableDrawing('line');
 document.getElementById('drawCircleBtn').onclick = () => enableDrawing('circle');
 document.getElementById('drawRectBtn').onclick = () => enableDrawing('rect');
 document.getElementById('drawSelectBtn').onclick = () => {
-    drawMode = null;          // vypne kreslení
-    canvas.selection = true;  // povolí výběr ostatních objektů
-    lockImage(false);         // odemkne hlavní obrázek
+    drawMode = null;
+    canvas.selection = true;
 
-    // povolí výběr a události jen pro objekty, které nejsou blank
     canvas.getObjects().forEach(obj => {
         const isBlank = obj._element?.src?.includes('blank_');
-        if (!isBlank) {
-            obj.selectable = true;
-            obj.evented = true;
-        } else {
-            // zablokuje vše pro blank
-            obj.selectable = false;
-            obj.evented = false;
-        }
+        obj.selectable = !isBlank;
+        obj.evented = !isBlank;
     });
 
-    canvas.discardActiveObject(); // zruší aktivní výběr, aby se blank nevybral
+    canvas.discardActiveObject();
     canvas.requestRenderAll();
 };
 
