@@ -685,7 +685,7 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
         dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
 
     } 
-    else { 
+   else { 
     filename = `image_only.${format}`;
     const img = currentImage;
 
@@ -713,8 +713,14 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
         img.width,
         img.height
     );
-
     exportCtx.restore();
+
+    // Přidání všech draw objektů
+    canvas.getObjects().forEach(obj => {
+        if (obj.layer === 'draw' && obj.visible) {
+            obj.render(exportCtx);
+        }
+    });
 
     dataURL = exportCanvas.toDataURL(mimeType, quality);
 }
@@ -832,9 +838,6 @@ function updateLayersVisibility() {
 
 document.getElementById('layerImage').addEventListener('change', updateLayersVisibility);
 document.getElementById('layerDraw').addEventListener('change', updateLayersVisibility);
-
-
-
 
 </script>
 
