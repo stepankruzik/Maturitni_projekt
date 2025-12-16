@@ -697,7 +697,7 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     exportCanvas.height = Math.ceil(bbox.height);
     const exportCtx = exportCanvas.getContext('2d');
 
-    // 👉 posun světa tak, aby levý horní roh bbox byl (0,0)
+    //  posun světa tak, aby levý horní roh bbox byl (0,0)
     exportCtx.save();
     exportCtx.translate(-bbox.left, -bbox.top);
 
@@ -720,6 +720,24 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     link.href = dataURL;
     link.download = filename;
     link.click();
+    
+//Ukládní na server
+   fetch('/save-image', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+            image: dataURL,
+            format: format
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('Uloženo do uploads:', data.path);
+    })
+    .catch(error => console.error('Chyba při ukládání na server:', error));
 });
 
 function getFillColor() {
@@ -751,8 +769,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.getElementById(btn.dataset.target).classList.remove('hidden');
     });
 });
-
-
 
 function enableDrawing(mode) {
     drawMode = mode;
