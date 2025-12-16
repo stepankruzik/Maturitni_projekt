@@ -15,3 +15,4 @@ Route::get('/editor', function() {
     $imagePath = $path ? asset($path) : null; 
     return view('editor', compact('imagePath'));
 })->name('editor');
+Route::post('/save-image', [ImageController::class, 'store']); //uložení na server
