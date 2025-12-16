@@ -685,11 +685,11 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
         dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
 
     } 
-   else { 
+ else { 
     filename = `image_only.${format}`;
     const img = currentImage;
 
-    // Bounding box zohledňující rotaci
+    // bounding box obrázku (včetně rotace)
     const bbox = img.getBoundingRect(true);
 
     const exportCanvas = document.createElement('canvas');
@@ -697,30 +697,21 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     exportCanvas.height = Math.ceil(bbox.height);
     const exportCtx = exportCanvas.getContext('2d');
 
+    // 👉 posun světa tak, aby levý horní roh bbox byl (0,0)
     exportCtx.save();
-    // Posun středu na střed canvasu
-    exportCtx.translate(exportCanvas.width / 2, exportCanvas.height / 2);
-    // Rotace obrázku podle úhlu
-    exportCtx.rotate(img.angle * Math.PI / 180);
-    // Zachování měřítka
-    exportCtx.scale(img.scaleX, img.scaleY);
+    exportCtx.translate(-bbox.left, -bbox.top);
 
-    // Kreslení obrázku se středem v (0,0)
-    exportCtx.drawImage(
-        img._element,
-        -img.width / 2,
-        -img.height / 2,
-        img.width,
-        img.height
-    );
-    exportCtx.restore();
-
-    // Přidání všech draw objektů
+    // vykreslení všech objektů kromě pozadí canvasu
     canvas.getObjects().forEach(obj => {
-        if (obj.layer === 'draw' && obj.visible) {
-            obj.render(exportCtx);
-        }
+        if (obj.visible === false) return;
+
+        // nechceme renderovat canvas background
+        exportCtx.save();
+        obj.render(exportCtx);
+        exportCtx.restore();
     });
+
+    exportCtx.restore();
 
     dataURL = exportCanvas.toDataURL(mimeType, quality);
 }
@@ -730,7 +721,7 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     link.download = filename;
     link.click();
 });
-//ÚPRAVY !!!!
+
 function getFillColor() {
     return document.getElementById('fillTransparent').checked ? '' : document.getElementById('fillColor').value;
 }
