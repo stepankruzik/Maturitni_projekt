@@ -88,28 +88,58 @@
         </div>
     </div>
 
-    <div id="panelDraw" class="tab-panel hidden">
+   <div id="panelDraw" class="tab-panel hidden">
+
+    <!-- BARVY -->
     <div class="mb-4 space-y-2">
         <label class="block text-sm font-medium text-gray-700">
             Výplň:
-            <input type="color" id="fillColor" value="#ffffff" class="w-full h-10 rounded border border-gray-300 cursor-pointer">
-            <input type="checkbox" id="fillTransparent" class="mt-1"> Průhledná
+            <input type="color" id="fillColor" value="#ffffff"
+                class="w-full h-10 rounded border cursor-pointer">
+            <label class="flex items-center gap-2 mt-1 text-sm">
+                <input type="checkbox" id="fillTransparent">
+                Průhledná
+            </label>
         </label>
 
         <label class="block text-sm font-medium text-gray-700">
             Obrys:
-            <input type="color" id="drawColor" value="#ff0000" class="w-full h-10 rounded border border-gray-300 cursor-pointer">
+            <input type="color" id="drawColor" value="#ff0000"
+                class="w-full h-10 rounded border cursor-pointer">
         </label>
     </div>
 
-    <div class="space-y-2">
+    <!-- KRESLENÍ -->
+    <div class="space-y-2 mb-4">
         <button id="drawLineBtn" class="w-full px-4 py-2 bg-blue-500 text-white rounded">Čára</button>
         <button id="drawCircleBtn" class="w-full px-4 py-2 bg-green-500 text-white rounded">Kruh</button>
-        <button id="drawRectBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Čtverec</button>
-        <button id="drawSelectBtn" class="w-full px-4 py-2 bg-gray-700 text-white rounded">Výběr</button>
+        <button id="drawRectBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Obdélník</button>
     </div>
-</div>
 
+    <!-- VÝBĚR -->
+    <div class="mb-4">
+        <button id="drawSelectBtn"
+            class="w-full px-4 py-2 bg-gray-700 text-white rounded">
+            Výběr / přesun
+        </button>
+    </div>
+
+    <!-- VRSTVY -->
+    <div class="border-t pt-3 space-y-2">
+        <p class="text-sm font-semibold text-gray-600">Vrstvy</p>
+
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" id="layerImage" checked>
+            Obrázek
+        </label>
+
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" id="layerDraw" checked>
+            Kreslení
+        </label>
+    </div>
+
+</div>
 </div>
 
     <!-- Canvas vpravo -->
@@ -123,6 +153,7 @@
 <script>
 const canvas = new fabric.Canvas('canvas');
 let currentImage = null;
+
 let cropRect = null;
 let mode = 'resize';
 const MAX_CANVAS_WIDTH = 900;
@@ -134,7 +165,7 @@ let isDown = false;
 let lastPosX, lastPosY;
 
 let drawMode = null; // 'line' | 'circle' | 'angle'
-let line, circle;
+let line, circle, rect;
 let origX, origY;
 
 canvas.on('mouse:down', (o) => {
@@ -149,7 +180,8 @@ canvas.on('mouse:down', (o) => {
                 strokeWidth: 2,
                 stroke: getStrokeColor(),
                 selectable: false,
-                evented: false
+                evented: false,
+                layer: 'draw'
             });
             canvas.add(line);
         }
@@ -167,7 +199,8 @@ canvas.on('mouse:down', (o) => {
                 stroke: getStrokeColor(),
                 strokeWidth: 2,
                 selectable: false,
-                evented: false
+                evented: false,
+                layer: 'draw'
             });
             canvas.add(circle);
         }
@@ -184,7 +217,8 @@ canvas.on('mouse:down', (o) => {
                 stroke: getStrokeColor(),
                 strokeWidth: 2,
                 selectable: false,
-                evented: false
+                evented: false,
+                layer: 'draw'
             });
             canvas.add(rect);
         }
@@ -193,13 +227,14 @@ canvas.on('mouse:down', (o) => {
     }
 });
 
+
 canvas.on('mouse:move', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
 
     //  KRESLENÍ
     if (drawMode && isDown) {
-        if (drawMode === 'line' || drawMode === 'angle') {
+        if (drawMode === 'line') {
             line.set({ x2: pointer.x, y2: pointer.y });
         }
 
@@ -335,6 +370,7 @@ function loadImage(url) {
         if (currentImage) canvas.remove(currentImage);
 
         currentImage = img;
+        img.layer = 'image';
         originalImageWidth = img.width;
         originalImageHeight = img.height;
 
@@ -650,52 +686,45 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
 
     } 
     else { 
-        filename = `image_only.${format}`;
-        const img = currentImage;
+    filename = `image_only.${format}`;
+    const img = currentImage;
 
-        const finalW = img.getScaledWidth();
-        const finalH = img.getScaledHeight();
-        
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = Math.round(finalW);
-        exportCanvas.height = Math.round(finalH);
-        const exportCtx = exportCanvas.getContext('2d');
-        
-        
-        const originalScaleX = img.scaleX;
-        const originalScaleY = img.scaleY;
-        const originalAngle = img.angle;
-        
-        img.set({ scaleX: 1, scaleY: 1, angle: 0 });
-        img.setCoords();
-        
-        exportCtx.save();
-        exportCtx.translate(finalW / 2, finalH / 2);
-        exportCtx.rotate(originalAngle * Math.PI / 180);
-        exportCtx.scale(originalScaleX, originalScaleY);
-        
-        exportCtx.drawImage(
-            img._element, 
-            -img.width / 2, 
-            -img.height / 2, 
-            img.width, 
-            img.height
-        );
-        exportCtx.restore();
+    // Bounding box zohledňující rotaci
+    const bbox = img.getBoundingRect(true);
 
-        img.set({ scaleX: originalScaleX, scaleY: originalScaleY, angle: originalAngle });
-        img.setCoords();
-        canvas.renderAll(); 
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.ceil(bbox.width);
+    exportCanvas.height = Math.ceil(bbox.height);
+    const exportCtx = exportCanvas.getContext('2d');
 
-        dataURL = exportCanvas.toDataURL(mimeType, quality);
-    }
+    exportCtx.save();
+    // Posun středu na střed canvasu
+    exportCtx.translate(exportCanvas.width / 2, exportCanvas.height / 2);
+    // Rotace obrázku podle úhlu
+    exportCtx.rotate(img.angle * Math.PI / 180);
+    // Zachování měřítka
+    exportCtx.scale(img.scaleX, img.scaleY);
+
+    // Kreslení obrázku se středem v (0,0)
+    exportCtx.drawImage(
+        img._element,
+        -img.width / 2,
+        -img.height / 2,
+        img.width,
+        img.height
+    );
+
+    exportCtx.restore();
+
+    dataURL = exportCanvas.toDataURL(mimeType, quality);
+}
     
     const link = document.createElement('a');
     link.href = dataURL;
     link.download = filename;
     link.click();
 });
-
+//ÚPRAVY !!!!
 function getFillColor() {
     return document.getElementById('fillTransparent').checked ? '' : document.getElementById('fillColor').value;
 }
@@ -788,6 +817,22 @@ document.addEventListener('keydown', (e) => {
         canvas.requestRenderAll();
     }
 });
+
+function updateLayersVisibility() {
+    const showImage = document.getElementById('layerImage').checked;
+    const showDraw = document.getElementById('layerDraw').checked;
+
+    canvas.getObjects().forEach(obj => {
+        if (obj.layer === 'image') obj.visible = showImage;
+        if (obj.layer === 'draw') obj.visible = showDraw;
+    });
+
+    canvas.requestRenderAll();
+}
+
+document.getElementById('layerImage').addEventListener('change', updateLayersVisibility);
+document.getElementById('layerDraw').addEventListener('change', updateLayersVisibility);
+
 
 
 
