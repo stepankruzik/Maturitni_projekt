@@ -110,19 +110,39 @@
     </div>
 
     <!-- KRESLENÍ -->
-    <div class="space-y-2 mb-4">
-        <button id="drawLineBtn" class="w-full px-4 py-2 bg-blue-500 text-white rounded">Čára</button>
-        <button id="drawCircleBtn" class="w-full px-4 py-2 bg-green-500 text-white rounded">Kruh</button>
-        <button id="drawRectBtn" class="w-full px-4 py-2 bg-purple-500 text-white rounded">Obdélník</button>
-    </div>
+    <div class="flex gap-2 mb-4 justify-around">
+
+    <!-- čára -->
+    <button id="drawLineBtn" class="tool-btn" title="Čára">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19L19 5" />
+        </svg>
+    </button>
+
+    <!-- kruh -->
+    <button id="drawCircleBtn" class="tool-btn" title="Kruh">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </button>
+
+    <!-- obdélník -->
+    <button id="drawRectBtn" class="tool-btn" title="Obdélník">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="4" y="4" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </button>
+
+</div>
 
     <!-- VÝBĚR -->
-    <div class="mb-4">
-        <button id="drawSelectBtn"
-            class="w-full px-4 py-2 bg-gray-700 text-white rounded">
-            Výběr / přesun
-        </button>
-    </div>
+     <button id="drawSelectBtn" class="tool-btn" title="Výběr/Přesun">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+        <path d="M13 13l6 6"/>
+    </svg>
+</button>
+ 
 
     <!-- VRSTVY -->
     <div class="border-t pt-3 space-y-2">
@@ -783,9 +803,19 @@ function enableDrawing(mode) {
 }
 
 
-document.getElementById('drawLineBtn').onclick = () => enableDrawing('line');
-document.getElementById('drawCircleBtn').onclick = () => enableDrawing('circle');
-document.getElementById('drawRectBtn').onclick = () => enableDrawing('rect');
+document.getElementById('drawLineBtn').addEventListener('click', function() {
+    setActiveTool(this);
+    enableDrawing('line');
+});
+document.getElementById('drawCircleBtn').addEventListener('click', function() {
+    setActiveTool(this);
+    enableDrawing('circle');
+});
+
+document.getElementById('drawRectBtn').addEventListener('click', function() {
+    setActiveTool(this);
+    enableDrawing('rect');
+});
 document.getElementById('drawSelectBtn').onclick = () => {
     drawMode = null;
     canvas.selection = true;
@@ -845,6 +875,11 @@ function updateLayersVisibility() {
 
 document.getElementById('layerImage').addEventListener('change', updateLayersVisibility);
 document.getElementById('layerDraw').addEventListener('change', updateLayersVisibility);
+
+function setActiveTool(btn) {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
 
 </script>
 
