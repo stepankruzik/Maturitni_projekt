@@ -140,6 +140,25 @@
             <rect x="4" y="4" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     </button>
+
+    <!-- tužka-->
+    <button id="drawBrushBtn" class="tool-btn" title="Kreslení tužkou">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+        </svg>
+    </button>
+
+
+    <!-- guma -->
+    <button id="drawEraserBtn" class="tool-btn" title="Guma">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="m7 21-4-4 9-9 4 4-9 9z"/>
+            <path d="M14 6 8 12"/>
+            <path d="m16 10 2 2"/>
+        </svg>
+    </button>
+
 </div>
 
     <!-- VRSTVY -->
@@ -189,6 +208,13 @@ let origX, origY;
 canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
+
+    // Guma - mazání objektů pod kurzorem
+    if (drawMode === 'eraser') {
+        isDown = true;
+        eraseAtPoint(pointer);
+        return;
+    }
 
     if (drawMode) {
         isDown = true;
@@ -244,11 +270,27 @@ canvas.on('mouse:down', (o) => {
         return;
     }
 });
+// Kreslení tužkou
+canvas.on('path:created', function (e) {
+    e.path.set({
+        layer: 'draw',
+        erasable: true,
+        selectable: false,
+        evented: false,
+        objectCaching: false
+    });
+});
 
 
 canvas.on('mouse:move', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
+
+    // Guma - mazání při tažení
+    if (drawMode === 'eraser' && isDown) {
+        eraseAtPoint(pointer);
+        return;
+    }
 
     //  KRESLENÍ
     if (drawMode && isDown) {
@@ -806,6 +848,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 function enableDrawing(mode) {
+    canvas.isDrawingMode = false;
     drawMode = mode;
     canvas.selection = false;
     canvas.discardActiveObject();
@@ -835,6 +878,7 @@ document.getElementById('drawRectBtn').addEventListener('click', function() {
     lockImage(true);
 });
 document.getElementById('drawSelectBtn').onclick = () => {
+    canvas.isDrawingMode = false;
     drawMode = null;
     canvas.selection = true;
     lockImage(false);
@@ -849,6 +893,27 @@ document.getElementById('drawSelectBtn').onclick = () => {
     canvas.discardActiveObject();
     canvas.requestRenderAll();
 };
+document.getElementById('drawBrushBtn').addEventListener('click', function () {
+    setActiveTool(this);
+
+    drawMode = null;
+    canvas.selection = false;
+    lockImage(true);
+
+    canvas.isDrawingMode = true;
+    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+    canvas.freeDrawingBrush.color = getStrokeColor();
+    canvas.freeDrawingBrush.width = 3;
+});
+
+document.getElementById('drawEraserBtn').addEventListener('click', function () {
+    setActiveTool(this);
+
+    drawMode = 'eraser';
+    canvas.isDrawingMode = false;
+    canvas.selection = false;
+    lockImage(true);
+});
 
 
 //zamknutí obrázku
@@ -900,6 +965,16 @@ function setActiveTool(btn) {
     document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
+
+document.getElementById('drawColor').addEventListener('input', () => {
+    if (
+        canvas.isDrawingMode &&
+        canvas.freeDrawingBrush instanceof fabric.PencilBrush
+    ) {
+        canvas.freeDrawingBrush.color = getStrokeColor();
+    }
+});
+
 
 </script>
 
