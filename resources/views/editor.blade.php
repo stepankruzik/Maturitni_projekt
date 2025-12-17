@@ -112,6 +112,14 @@
     <!-- KRESLENÍ -->
     <div class="flex gap-2 mb-4 justify-around">
 
+    <!-- VÝBĚR -->
+     <button id="drawSelectBtn" class="tool-btn" title="Výběr/Přesun">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+            <path d="M13 13l6 6"/>
+        </svg>
+    </button>
+
     <!-- čára -->
     <button id="drawLineBtn" class="tool-btn" title="Čára">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -132,17 +140,7 @@
             <rect x="4" y="4" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     </button>
-
 </div>
-
-    <!-- VÝBĚR -->
-     <button id="drawSelectBtn" class="tool-btn" title="Výběr/Přesun">
-    <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-        <path d="M13 13l6 6"/>
-    </svg>
-</button>
- 
 
     <!-- VRSTVY -->
     <div class="border-t pt-3 space-y-2">
@@ -787,6 +785,23 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
         document.getElementById(btn.dataset.target).classList.remove('hidden');
+
+        if (btn.dataset.target === 'panelDraw') {
+    drawMode = null;
+    canvas.selection = true;
+    lockImage(false);
+
+    setActiveTool(document.getElementById('drawSelectBtn'));
+
+    canvas.getObjects().forEach(obj => {
+        const isBlank = obj._element?.src?.includes('blank_');
+        obj.selectable = !isBlank;
+        obj.evented = !isBlank;
+    });
+
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+}
     });
 });
 
@@ -806,19 +821,24 @@ function enableDrawing(mode) {
 document.getElementById('drawLineBtn').addEventListener('click', function() {
     setActiveTool(this);
     enableDrawing('line');
+    lockImage(true);
 });
 document.getElementById('drawCircleBtn').addEventListener('click', function() {
     setActiveTool(this);
     enableDrawing('circle');
+    lockImage(true);
 });
 
 document.getElementById('drawRectBtn').addEventListener('click', function() {
     setActiveTool(this);
     enableDrawing('rect');
+    lockImage(true);
 });
 document.getElementById('drawSelectBtn').onclick = () => {
     drawMode = null;
     canvas.selection = true;
+    lockImage(false);
+    setActiveTool(document.getElementById('drawSelectBtn'));
 
     canvas.getObjects().forEach(obj => {
         const isBlank = obj._element?.src?.includes('blank_');
