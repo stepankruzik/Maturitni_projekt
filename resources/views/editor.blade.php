@@ -140,7 +140,8 @@
             <rect x="4" y="4" width="16" height="16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     </button>
-
+    </div>
+    <div class="flex gap-2 mb-4 justify-around">
     <!-- tužka-->
     <button id="drawBrushBtn" class="tool-btn" title="Kreslení tužkou">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -205,16 +206,40 @@ let drawMode = null; // 'line' | 'circle' | 'angle'
 let line, circle, rect;
 let origX, origY;
 
+// Vizuální kurzor gumy
+let eraserCursor = null;
+const ERASER_RADIUS = 20;
+
+function showEraserCursor(pointer) {
+    if (!eraserCursor) {
+        eraserCursor = new fabric.Circle({
+            radius: ERASER_RADIUS,
+            fill: 'rgba(255, 255, 255, 1)',
+            stroke: 'red',
+            strokeWidth: 1,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            originX: 'center',
+            originY: 'center'
+        });
+        canvas.add(eraserCursor);
+    }
+    eraserCursor.set({ left: pointer.x, top: pointer.y, visible: true });
+    eraserCursor.bringToFront();
+    canvas.requestRenderAll();
+}
+
+function hideEraserCursor() {
+    if (eraserCursor) {
+        eraserCursor.visible = false;
+        canvas.requestRenderAll();
+    }
+}
+
 canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
-
-    // Guma - mazání objektů pod kurzorem
-    if (drawMode === 'eraser') {
-        isDown = true;
-        eraseAtPoint(pointer);
-        return;
-    }
 
     if (drawMode) {
         isDown = true;
@@ -285,7 +310,14 @@ canvas.on('path:created', function (e) {
 canvas.on('mouse:move', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
-
+    
+    // Zobrazení kurzoru gumy
+    if (drawMode === 'eraser') {
+        showEraserCursor(pointer);
+        canvas.defaultCursor = 'none';
+        canvas.hoverCursor = 'none';
+    }
+    
     // Guma - mazání při tažení
     if (drawMode === 'eraser' && isDown) {
         eraseAtPoint(pointer);
@@ -733,6 +765,8 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
         return;
     }
 
+    hideEraserCursor();
+
     const format = document.getElementById('exportFormat').value;
     const contentType = document.querySelector('input[name="exportContent"]:checked').value;
     const quality = 0.9;
@@ -761,11 +795,11 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     exportCtx.save();
     exportCtx.translate(-bbox.left, -bbox.top);
 
-    // vykreslení všech objektů kromě pozadí canvasu
+    // vykreslení všech objektů kromě pozadí canvasu a kurzoru gumy
     canvas.getObjects().forEach(obj => {
         if (obj.visible === false) return;
+        if (obj === eraserCursor) return; // Přeskočíme kurzor gumy
 
-        // nechceme renderovat canvas background
         exportCtx.save();
         obj.render(exportCtx);
         exportCtx.restore();
@@ -814,6 +848,12 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         // vypnout kreslení
         drawMode = null;
         isDown = false;
+        
+        // Skrýt kurzor gumy
+        hideEraserCursor();
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+        canvas.isDrawingMode = false;
 
         // vypnout crop
         if (cropRect) {
@@ -860,7 +900,6 @@ function enableDrawing(mode) {
     }
 }
 
-
 document.getElementById('drawLineBtn').addEventListener('click', function() {
     setActiveTool(this);
     enableDrawing('line');
@@ -906,15 +945,132 @@ document.getElementById('drawBrushBtn').addEventListener('click', function () {
     canvas.freeDrawingBrush.width = 3;
 });
 
+// Funkce pro mazání
+function eraseAtPoint(pointer) {
+    const eraserRadius = ERASER_RADIUS;
+    const objects = canvas.getObjects().slice();
+
+    for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+
+        if (!obj.erasable || obj.type !== 'path') continue;
+
+        const pathData = obj.path;
+        if (!pathData || pathData.length < 2) continue;
+
+        // Získá transformační matici
+        const matrix = obj.calcTransformMatrix();
+        const offsetX = obj.pathOffset ? obj.pathOffset.x : 0;
+        const offsetY = obj.pathOffset ? obj.pathOffset.y : 0;
+
+        const eraseIndices = new Set();
+
+        for (let j = 0; j < pathData.length; j++) {
+            const seg = pathData[j];
+            let px, py;
+
+            if (seg[0] === 'M' || seg[0] === 'L') {
+                px = seg[1];
+                py = seg[2];
+            } else if (seg[0] === 'Q') {
+                px = seg[3];
+                py = seg[4];
+            } else if (seg[0] === 'C') {
+                px = seg[5];
+                py = seg[6];
+            } else {
+                continue;
+            }
+
+            // odečte offset a aplikuje matici
+            const localPoint = new fabric.Point(px - offsetX, py - offsetY);
+            const canvasPoint = fabric.util.transformPoint(localPoint, matrix);
+            
+            const dist = Math.hypot(pointer.x - canvasPoint.x, pointer.y - canvasPoint.y);
+
+            if (dist <= eraserRadius) {
+                // Maže body které jsou pod kurzorem
+                eraseIndices.add(j);
+            }
+        }
+
+        if (eraseIndices.size === 0) continue;
+
+        canvas.remove(obj);
+
+        if (eraseIndices.size >= pathData.length - 2) {
+            canvas.requestRenderAll();
+            continue;
+        }
+
+        const newPathData = [];
+        let needNewMove = false;
+
+        for (let j = 0; j < pathData.length; j++) {
+            if (eraseIndices.has(j)) {
+                needNewMove = true;
+                continue;
+            }
+
+            const seg = [...pathData[j]];
+
+            if (needNewMove && seg[0] !== 'M') {
+                if (seg[0] === 'L') {
+                    newPathData.push(['M', seg[1], seg[2]]);
+                } else if (seg[0] === 'Q') {
+                    newPathData.push(['M', seg[3], seg[4]]);
+                } else if (seg[0] === 'C') {
+                    newPathData.push(['M', seg[5], seg[6]]);
+                }
+                needNewMove = false;
+                continue;
+            }
+
+            newPathData.push(seg);
+        }
+
+        if (newPathData.length >= 2) {
+            try {
+                const pathString = newPathData.map(seg => seg.join(' ')).join(' ');
+                const newPath = new fabric.Path(pathString, {
+                    stroke: obj.stroke,
+                    strokeWidth: obj.strokeWidth,
+                    fill: null,
+                    strokeLineCap: 'round',
+                    strokeLineJoin: 'round',
+                    selectable: false,
+                    evented: false,
+                    erasable: true,
+                    layer: 'draw',
+                    objectCaching: false
+                });
+                canvas.add(newPath);
+            } catch (e) {}
+        }
+
+        canvas.requestRenderAll();
+    }
+}
+
 document.getElementById('drawEraserBtn').addEventListener('click', function () {
     setActiveTool(this);
-
     drawMode = 'eraser';
     canvas.isDrawingMode = false;
     canvas.selection = false;
+    canvas.defaultCursor = 'none';
+    canvas.hoverCursor = 'none';
     lockImage(true);
 });
 
+// Skrytí kurzoru gumy při změně nástroje
+function setActiveTool(btn) {
+    hideEraserCursor();
+    canvas.defaultCursor = 'default';
+    canvas.hoverCursor = 'move';
+    
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
 
 //zamknutí obrázku
 function lockImage(lock = true) {
@@ -961,11 +1117,6 @@ function updateLayersVisibility() {
 document.getElementById('layerImage').addEventListener('change', updateLayersVisibility);
 document.getElementById('layerDraw').addEventListener('change', updateLayersVisibility);
 
-function setActiveTool(btn) {
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-}
-
 document.getElementById('drawColor').addEventListener('input', () => {
     if (
         canvas.isDrawingMode &&
@@ -974,7 +1125,6 @@ document.getElementById('drawColor').addEventListener('input', () => {
         canvas.freeDrawingBrush.color = getStrokeColor();
     }
 });
-
 
 </script>
 
