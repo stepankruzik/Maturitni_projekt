@@ -161,6 +161,26 @@
             value="20"
             class="w-full">
     </label>
+<hr class="my-3">
+
+<p class="text-sm font-semibold text-gray-600">Nastavení objektu</p>
+
+<label class="block text-sm mt-2">
+    Typ čáry:
+    <select id="strokeStyle" class="w-full border rounded p-1">
+        <option value="solid">Plná</option>
+        <option value="dashed">Čárkovaná</option>
+        <option value="dotted">Tečkovaná</option>
+    </select>
+</label>
+
+<label class="block text-sm mt-2">
+    Zakončení čáry:
+    <select id="strokeCap" class="w-full border rounded p-1">
+        <option value="round">Zaoblené</option>
+        <option value="butt">Rovné</option>
+    </select>
+</label>
 
     <div class="flex gap-2 mb-4 justify-around">
     <!-- tužka-->
@@ -265,13 +285,17 @@ canvas.on('mouse:down', (o) => {
     if (drawMode) {
         isDown = true;
 
+        const width = parseInt(document.getElementById('brushWidth').value);
         if (drawMode === 'line') {
             line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
-                strokeWidth: 2,
-                stroke: getStrokeColor(),
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                 stroke: getStrokeColor(),
+                 strokeWidth: width,
+                 strokeDashArray: getDashFromUIForWidth(width),
+                 strokeLineCap: document.getElementById('strokeCap').value,
+                 strokeUniform: true,
+                 selectable: false,
+                 evented: false,
+                 layer: 'draw'
             });
             canvas.add(line);
         }
@@ -287,7 +311,10 @@ canvas.on('mouse:down', (o) => {
                 radius: 1,
                 fill: getFillColor(),
                 stroke: getStrokeColor(),
-                strokeWidth: 2,
+                strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width),
+                strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
                 layer: 'draw'
@@ -305,7 +332,10 @@ canvas.on('mouse:down', (o) => {
                 height: 1,
                 fill: getFillColor(),
                 stroke: getStrokeColor(),
-                strokeWidth: 2,
+                strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width),
+                strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
                 layer: 'draw'
@@ -1169,6 +1199,57 @@ document.getElementById('eraserSize').addEventListener('input', (e) => {
         canvas.requestRenderAll();
     }
 });
+
+// Úprava stylu čáry 
+function applyToActiveObject(props) {
+    const obj = canvas.getActiveObject();
+    if (!obj || !obj.stroke) return;
+
+    if (props.strokeDashArray) {
+        const scale = Math.max(obj.scaleX || 1, obj.scaleY || 1);
+        props.strokeDashArray = props.strokeDashArray.map(v => v / scale);
+    }
+
+    obj.set(props);
+    obj.setCoords();
+    canvas.requestRenderAll();
+}
+
+// Styl čáry
+document.getElementById('strokeStyle').addEventListener('change', e => {
+    const obj = canvas.getActiveObject();
+    if (!obj || !obj.stroke) return;
+
+    const width = obj.strokeWidth || 1;
+
+    obj.set({
+        strokeDashArray: getDashFromUIForWidth(width)
+    });
+
+    canvas.requestRenderAll();
+});
+
+// Zakončení čáry
+document.getElementById('strokeCap').addEventListener('change', e => {
+    applyToActiveObject({
+        strokeLineCap: e.target.value
+    });
+});
+
+function getDashFromUI() {
+    const val = document.getElementById('strokeStyle').value;
+    if (val === 'dashed') return [10, 5];
+    if (val === 'dotted') return [2, 6];
+    return null;
+}
+
+function getDashFromUIForWidth(width) {
+    const type = document.getElementById('strokeStyle').value;
+
+    if (type === 'dashed') return [width * 2, width];
+    if (type === 'dotted') return [width, width * 1.5];
+    return null;
+}
 
 
 
