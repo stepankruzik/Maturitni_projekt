@@ -141,6 +141,27 @@
         </svg>
     </button>
     </div>
+    <label class="block text-sm font-medium text-gray-700 mt-3">
+       Šířka čáry:
+       <input
+           type="range"
+           id="brushWidth"
+           min="1"
+           max="30"
+           value="3"
+           class="w-full">
+    </label>
+    <label class="block text-sm font-medium text-gray-700 mt-3">
+        Velikost gumy:
+        <input
+            type="range"
+            id="eraserSize"
+            min="5"
+            max="60"
+            value="20"
+            class="w-full">
+    </label>
+
     <div class="flex gap-2 mb-4 justify-around">
     <!-- tužka-->
     <button id="drawBrushBtn" class="tool-btn" title="Kreslení tužkou">
@@ -208,7 +229,7 @@ let origX, origY;
 
 // Vizuální kurzor gumy
 let eraserCursor = null;
-const ERASER_RADIUS = 20;
+let ERASER_RADIUS = 20;
 
 function showEraserCursor(pointer) {
     if (!eraserCursor) {
@@ -942,7 +963,7 @@ document.getElementById('drawBrushBtn').addEventListener('click', function () {
     canvas.isDrawingMode = true;
     canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
     canvas.freeDrawingBrush.color = getStrokeColor();
-    canvas.freeDrawingBrush.width = 3;
+    canvas.freeDrawingBrush.width = parseInt(document.getElementById('brushWidth').value)
 });
 
 // Funkce pro mazání
@@ -1125,6 +1146,31 @@ document.getElementById('drawColor').addEventListener('input', () => {
         canvas.freeDrawingBrush.color = getStrokeColor();
     }
 });
+
+// velikost tužky
+document.getElementById('brushWidth').addEventListener('input', (e) => {
+    const width = parseInt(e.target.value);
+
+    if (
+        canvas.isDrawingMode &&
+        canvas.freeDrawingBrush instanceof fabric.PencilBrush
+    ) {
+        canvas.freeDrawingBrush.width = width;
+    }
+});
+// velikost gumy
+document.getElementById('eraserSize').addEventListener('input', (e) => {
+    ERASER_RADIUS = parseInt(e.target.value);
+
+    if (eraserCursor) {
+        eraserCursor.set({
+            radius: ERASER_RADIUS
+        });
+        canvas.requestRenderAll();
+    }
+});
+
+
 
 </script>
 
