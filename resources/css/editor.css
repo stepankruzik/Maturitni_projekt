@@ -23,3 +23,22 @@
     stroke: #374151; 
 }
 
+.font-tile {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    background: white;
+    font-size: 14px;
+    text-align: center;
+}
+
+.font-tile:hover {
+    background: #f3f4f6;
+}
+
+.font-tile.active {
+    border-color: #ec4899;
+    background: #fce7f3;
+}
+

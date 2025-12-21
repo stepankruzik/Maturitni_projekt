@@ -233,15 +233,26 @@
         <input type="range" id="textSize" min="10" max="120" value="32" class="w-full">
     </label>
 
-    <label class="block text-sm mt-2">
-        Font:
-        <select id="textFont" class="w-full border rounded p-1">
-            <option value="Arial">Arial</option>
-            <option value="Times New Roman">Times</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Courier New">Courier</option>
-        </select>
-    </label>
+    <div class="mt-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Font:</label>
+        <div id="fontPickerBtn" class="w-full border rounded p-2 bg-white cursor-pointer flex items-center justify-between hover:border-pink-400 transition">
+            <span id="fontPickerLabel" style="font-family: Arial;">Arial</span>
+            <svg id="fontPickerArrow" class="w-4 h-4 text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </div>
+        <input type="hidden" id="textFont" value="Arial">
+        
+        <!-- Font Picker Dropdown-->
+        <div id="fontPickerDropdown" class="hidden mt-1 border rounded-lg bg-white shadow-lg">
+            <div class="p-2 border-b">
+                <input type="text" id="fontSearch" placeholder="Hledat font..." 
+                       class="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:border-pink-400">
+            </div>
+            <div id="fontList" class="overflow-y-auto max-h-48 p-1">
+            </div>
+        </div>
+    </div>
 
     <label class="block text-sm mt-2">
         Barva textu:
@@ -463,7 +474,14 @@ canvas.on('mouse:move', (o) => {
 
 canvas.on('mouse:up', () => {
     if (drawMode && isDown) {
-        // kreslené tvary zůstávají locked, obrázek selectable
+        // Po dokončení kreslení nastavit objekt jako selectable
+        const lastObj = [line, circle, rect].find(obj => obj !== null);
+        if (lastObj) {
+            lastObj.set({
+                selectable: true,
+                evented: true
+            });
+        }
         line = null;
         circle = null;
         rect = null;
@@ -590,7 +608,6 @@ function fitImageToCanvas(img) {
     img.top = canvas.height / 2;
     img.setCoords();
     canvas.requestRenderAll();
-    
 }
 
 // Zoom a centrování objektu
@@ -1266,7 +1283,76 @@ function updateLayersVisibility() {
 document.getElementById('layerImage').addEventListener('change', updateLayersVisibility);
 document.getElementById('layerDraw').addEventListener('change', updateLayersVisibility);
 
+// Synchronizace UI s vybraným objektem
+canvas.on('selection:created', syncUIWithSelection);
+canvas.on('selection:updated', syncUIWithSelection);
+canvas.on('selection:cleared', () => {
+    // Při zrušení výběru necháme UI beze změny
+});
+
+function syncUIWithSelection() {
+    const obj = canvas.getActiveObject();
+    if (!obj || obj === currentImage || obj === cropRect || obj === eraserCursor) return;
+
+    // Synchronizace barvy obrysu
+    if (obj.stroke) {
+        document.getElementById('drawColor').value = obj.stroke;
+    }
+
+    // Synchronizace barvy výplně
+    if (obj.fill && obj.fill !== '') {
+        document.getElementById('fillColor').value = obj.fill;
+        document.getElementById('fillTransparent').checked = false;
+    } else if (obj.fill === '' || obj.fill === null || obj.fill === 'transparent') {
+        document.getElementById('fillTransparent').checked = true;
+    }
+
+    // Synchronizace šířky čáry
+    if (obj.strokeWidth) {
+        document.getElementById('brushWidth').value = obj.strokeWidth;
+    }
+
+    // Synchronizace stylu čáry
+    const dash = obj.strokeDashArray;
+    if (!dash || dash.length === 0) {
+        document.getElementById('strokeStyle').value = 'solid';
+    } else if (dash[0] > dash[1]) {
+        document.getElementById('strokeStyle').value = 'dashed';
+    } else {
+        document.getElementById('strokeStyle').value = 'dotted';
+    }
+
+    // Synchronizace zakončení čáry
+    if (obj.strokeLineCap) {
+        document.getElementById('strokeCap').value = obj.strokeLineCap;
+    }
+
+    // Synchronizace vlastností textu (IText)
+    if (obj.type === 'i-text') {
+        if (obj.fontSize) {
+            document.getElementById('textSize').value = obj.fontSize;
+        }
+        if (obj.fill) {
+            document.getElementById('textColor').value = obj.fill;
+        }
+        if (obj.fontFamily) {
+            document.getElementById('textFont').value = obj.fontFamily;
+            // Aktualizace font pickeru
+            if (typeof setFontPickerValue === 'function') {
+                setFontPickerValue(obj.fontFamily);
+            }
+        }
+    }
+}
+
 document.getElementById('drawColor').addEventListener('input', () => {
+    // Aktualizace aktivního objektu
+    const activeObj = canvas.getActiveObject();
+    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.stroke !== undefined) {
+        activeObj.set({ stroke: getStrokeColor() });
+        canvas.requestRenderAll();
+    }
+
     if (
         canvas.isDrawingMode &&
         canvas.freeDrawingBrush instanceof fabric.PencilBrush
@@ -1275,9 +1361,39 @@ document.getElementById('drawColor').addEventListener('input', () => {
     }
 });
 
+// Aktualizace barvy výplně aktivního objektu
+document.getElementById('fillColor').addEventListener('input', () => {
+    const activeObj = canvas.getActiveObject();
+    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.fill !== undefined) {
+        if (!document.getElementById('fillTransparent').checked) {
+            activeObj.set({ fill: getFillColor() });
+            canvas.requestRenderAll();
+        }
+    }
+});
+
+// Aktualizace průhledné výplně aktivního objektu
+document.getElementById('fillTransparent').addEventListener('change', () => {
+    const activeObj = canvas.getActiveObject();
+    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.fill !== undefined) {
+        activeObj.set({ fill: getFillColor() });
+        canvas.requestRenderAll();
+    }
+});
+
 // velikost tužky
 document.getElementById('brushWidth').addEventListener('input', (e) => {
     const width = parseInt(e.target.value);
+
+    // Aktualizace šířky čáry aktivního objektu
+    const activeObj = canvas.getActiveObject();
+    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.strokeWidth !== undefined) {
+        activeObj.set({ 
+            strokeWidth: width,
+            strokeDashArray: getDashFromUIForWidth(width)
+        });
+        canvas.requestRenderAll();
+    }
 
     if (
         canvas.isDrawingMode &&
@@ -1387,9 +1503,106 @@ document.getElementById('textColor').addEventListener('input', e => {
     applyToActiveText({ fill: e.target.value });
 });
 
-document.getElementById('textFont').addEventListener('change', e => {
-    applyToActiveText({ fontFamily: e.target.value });
+// Font Picker Dropdown
+const fontCategories = {
+    'Bezpatkové': ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Open Sans', 'Roboto', 'Lato', 'Montserrat'],
+    'Patkové': ['Times New Roman', 'Georgia', 'Palatino Linotype', 'Book Antiqua', 'Garamond', 'Playfair Display'],
+    'Neproporcionální': ['Courier New', 'Consolas', 'Monaco', 'Lucida Console', 'Source Code Pro'],
+    'Rukopisné': ['Comic Sans MS', 'Brush Script MT', 'Pacifico', 'Dancing Script', 'Caveat'],
+    'Dekorativní': ['Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Lobster']
+};
+
+const fontPickerBtn = document.getElementById('fontPickerBtn');
+const fontPickerDropdown = document.getElementById('fontPickerDropdown');
+const fontPickerArrow = document.getElementById('fontPickerArrow');
+const fontPickerLabel = document.getElementById('fontPickerLabel');
+const fontList = document.getElementById('fontList');
+const fontSearch = document.getElementById('fontSearch');
+const textFontInput = document.getElementById('textFont');
+
+function renderFontList(filter = '') {
+    fontList.innerHTML = '';
+    const filterLower = filter.toLowerCase();
+    
+    for (const [category, fonts] of Object.entries(fontCategories)) {
+        const filteredFonts = fonts.filter(f => f.toLowerCase().includes(filterLower));
+        if (filteredFonts.length === 0) continue;
+        
+        const categoryEl = document.createElement('div');
+        categoryEl.className = 'text-xs font-semibold text-gray-500 uppercase mt-2 mb-1 px-2';
+        categoryEl.textContent = category;
+        fontList.appendChild(categoryEl);
+        
+        filteredFonts.forEach(font => {
+            const fontEl = document.createElement('div');
+            fontEl.className = 'font-item px-3 py-2 rounded cursor-pointer hover:bg-pink-100 transition text-lg';
+            fontEl.style.fontFamily = font;
+            fontEl.textContent = font;
+            fontEl.dataset.font = font;
+            
+            if (font === textFontInput.value) {
+                fontEl.classList.add('bg-pink-200');
+            }
+            
+            fontEl.addEventListener('click', () => selectFont(font));
+            fontList.appendChild(fontEl);
+        });
+    }
+}
+
+function selectFont(font) {
+    textFontInput.value = font;
+    fontPickerLabel.textContent = font;
+    fontPickerLabel.style.fontFamily = font;
+    closeFontPicker();
+    
+    // Aktualizace aktivního textu
+    applyToActiveText({ fontFamily: font });
+    
+    textFontInput.dispatchEvent(new Event('change'));
+}
+
+function setFontPickerValue(font) {
+    textFontInput.value = font;
+    fontPickerLabel.textContent = font;
+    fontPickerLabel.style.fontFamily = font;
+}
+
+function openFontPicker() {
+    renderFontList();
+    fontSearch.value = '';
+    fontPickerDropdown.classList.remove('hidden');
+    fontPickerArrow.classList.add('rotate-180');
+    fontSearch.focus();
+}
+
+function closeFontPicker() {
+    fontPickerDropdown.classList.add('hidden');
+    fontPickerArrow.classList.remove('rotate-180');
+}
+
+function toggleFontPicker() {
+    if (fontPickerDropdown.classList.contains('hidden')) {
+        openFontPicker();
+    } else {
+        closeFontPicker();
+    }
+}
+
+fontPickerBtn.addEventListener('click', toggleFontPicker);
+
+fontSearch.addEventListener('input', (e) => {
+    renderFontList(e.target.value);
 });
+
+// Zavření při kliknutí mimo dropdown
+document.addEventListener('click', (e) => {
+    if (!fontPickerBtn.contains(e.target) && !fontPickerDropdown.contains(e.target)) {
+        closeFontPicker();
+    }
+});
+
+
 
 </script>
 
