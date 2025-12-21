@@ -5,9 +5,8 @@
         <button class="tab-btn px-3 py-1 bg-green-500 text-white rounded" data-target="panelFilters">Filtry</button>
         <button class="tab-btn px-3 py-1 bg-orange-500 text-white rounded" data-target="panelDownload">Export</button>
         <button class="tab-btn px-3 py-1 bg-red-500 text-white rounded" data-target="panelLevels">Úrovně</button>
-        <button class="tab-btn px-3 py-1 bg-indigo-500 text-white rounded" data-target="panelDraw">Kreslení
-</button>
-
+        <button class="tab-btn px-3 py-1 bg-indigo-500 text-white rounded" data-target="panelDraw">Kreslení</button>
+        <button class="tab-btn px-3 py-1 bg-pink-500 text-white rounded" data-target="panelText">Text</button>
     </div>
 
     <div class="flex h-screen">
@@ -219,6 +218,44 @@
     </div>
 
 </div>
+
+<div id="panelText" class="tab-panel hidden">
+
+    <label class="block text-sm font-medium text-gray-700 mb-2">
+        Text:
+        <input type="text" id="textInput"
+               class="w-full border rounded p-2"
+               placeholder="Napiš text…">
+    </label>
+
+    <label class="block text-sm mt-2">
+        Velikost písma:
+        <input type="range" id="textSize" min="10" max="120" value="32" class="w-full">
+    </label>
+
+    <label class="block text-sm mt-2">
+        Font:
+        <select id="textFont" class="w-full border rounded p-1">
+            <option value="Arial">Arial</option>
+            <option value="Times New Roman">Times</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Courier New">Courier</option>
+        </select>
+    </label>
+
+    <label class="block text-sm mt-2">
+        Barva textu:
+        <input type="color" id="textColor" value="#000000"
+               class="w-full h-10 rounded border cursor-pointer">
+    </label>
+
+    <button id="addTextBtn"
+            class="w-full mt-3 px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700">
+        Přidat text
+    </button>
+
+</div>
+
 </div>
 
     <!-- Canvas vpravo -->
@@ -1311,8 +1348,48 @@ function getDashFromUIForWidth(width) {
     if (type === 'dotted') return [width, width * 1.5];
     return null;
 }
+//Přidání textu
+document.getElementById('addTextBtn').addEventListener('click', () => {
+    const textValue = document.getElementById('textInput').value.trim();
+    if (!textValue) return;
 
+    const text = new fabric.IText(textValue, {
+        left: canvas.width / 2,
+        top: canvas.height / 2,
+        originX: 'center',
+        originY: 'center',
+        fill: document.getElementById('textColor').value,
+        fontSize: parseInt(document.getElementById('textSize').value),
+        fontFamily: document.getElementById('textFont').value,
+        selectable: true,
+        evented: true,
+        layer: 'draw'
+    });
 
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    canvas.requestRenderAll();
+});
+// Úprava vlastností textu
+function applyToActiveText(props) {
+    const obj = canvas.getActiveObject();
+    if (!obj || obj.type !== 'i-text') return;
+
+    obj.set(props);
+    canvas.requestRenderAll();
+}
+
+document.getElementById('textSize').addEventListener('input', e => {
+    applyToActiveText({ fontSize: parseInt(e.target.value) });
+});
+
+document.getElementById('textColor').addEventListener('input', e => {
+    applyToActiveText({ fill: e.target.value });
+});
+
+document.getElementById('textFont').addEventListener('change', e => {
+    applyToActiveText({ fontFamily: e.target.value });
+});
 
 </script>
 
