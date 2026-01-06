@@ -207,13 +207,18 @@
         <p class="text-sm font-semibold text-gray-600">Vrstvy</p>
 
         <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" id="layerImage" checked>
+            <input type="checkbox" class="layerImageCheck" checked>
             Obrázek
         </label>
 
         <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" id="layerDraw" checked>
+            <input type="checkbox" class="layerDrawCheck" checked>
             Kreslení
+        </label>
+
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" class="layerTextCheck" checked>
+            Text
         </label>
     </div>
 
@@ -260,10 +265,77 @@
                class="w-full h-10 rounded border cursor-pointer">
     </label>
 
+    <!-- Zarovnání textu -->
+    <div class="mt-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Zarovnání:</label>
+        <div class="flex gap-1">
+            <button id="alignLeft" class="text-align-btn flex-1 p-2 border rounded hover:bg-pink-100 transition bg-pink-200" title="Zarovnat vlevo">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="15" y2="12"/>
+                    <line x1="3" y1="18" x2="18" y2="18"/>
+                </svg>
+            </button>
+            <button id="alignCenter" class="text-align-btn flex-1 p-2 border rounded hover:bg-pink-100 transition" title="Zarovnat na střed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="6" y1="12" x2="18" y2="12"/>
+                    <line x1="4" y1="18" x2="20" y2="18"/>
+                </svg>
+            </button>
+            <button id="alignRight" class="text-align-btn flex-1 p-2 border rounded hover:bg-pink-100 transition" title="Zarovnat vpravo">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="9" y1="12" x2="21" y2="12"/>
+                    <line x1="6" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Styl textu -->
+    <div class="mt-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Styl:</label>
+        <div class="flex gap-1">
+            <button id="textBold" class="text-style-btn flex-1 p-2 border rounded hover:bg-pink-100 transition font-bold" title="Tučné">
+                B
+            </button>
+            <button id="textItalic" class="text-style-btn flex-1 p-2 border rounded hover:bg-pink-100 transition italic" title="Kurzíva">
+                I
+            </button>
+            <button id="textUnderline" class="text-style-btn flex-1 p-2 border rounded hover:bg-pink-100 transition underline" title="Podtržení">
+                U
+            </button>
+            <button id="textLinethrough" class="text-style-btn flex-1 p-2 border rounded hover:bg-pink-100 transition line-through" title="Přeškrtnutí">
+                S
+            </button>
+        </div>
+    </div>
+
     <button id="addTextBtn"
             class="w-full mt-3 px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700">
         Přidat text
     </button>
+
+    <!-- VRSTVY -->
+    <div class="border-t pt-3 mt-4 space-y-2">
+        <p class="text-sm font-semibold text-gray-600">Vrstvy</p>
+
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" class="layerImageCheck" checked>
+            Obrázek
+        </label>
+
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" class="layerDrawCheck" checked>
+            Kreslení
+        </label>
+
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" class="layerTextCheck" checked>
+            Text
+        </label>
+    </div>
 
 </div>
 
@@ -1258,6 +1330,11 @@ document.addEventListener('keydown', (e) => {
         const activeObj = canvas.getActiveObject();
         if (!activeObj) return;
 
+        // Pokud je to text v editačním režimu, necháme Fabric.js zpracovat klávesu
+        if (activeObj.type === 'i-text' && activeObj.isEditing) {
+            return; // Nemazat objekt, nechat smazat písmeno
+        }
+
         const isBlank = activeObj._element?.src?.includes('blank_');
         if (!isBlank) {
             canvas.remove(activeObj);
@@ -1269,19 +1346,34 @@ document.addEventListener('keydown', (e) => {
 });
 
 function updateLayersVisibility() {
-    const showImage = document.getElementById('layerImage').checked;
-    const showDraw = document.getElementById('layerDraw').checked;
+    const showImage = document.querySelector('.layerImageCheck').checked;
+    const showDraw = document.querySelector('.layerDrawCheck').checked;
+    const showText = document.querySelector('.layerTextCheck').checked;
 
     canvas.getObjects().forEach(obj => {
         if (obj.layer === 'image') obj.visible = showImage;
         if (obj.layer === 'draw') obj.visible = showDraw;
+        if (obj.layer === 'text') obj.visible = showText;
     });
 
     canvas.requestRenderAll();
 }
 
-document.getElementById('layerImage').addEventListener('change', updateLayersVisibility);
-document.getElementById('layerDraw').addEventListener('change', updateLayersVisibility);
+// Synchronizace všech checkboxů vrstev
+function syncLayerCheckboxes(layerClass, checked) {
+    document.querySelectorAll(`.${layerClass}`).forEach(cb => cb.checked = checked);
+    updateLayersVisibility();
+}
+
+document.querySelectorAll('.layerImageCheck').forEach(cb => {
+    cb.addEventListener('change', (e) => syncLayerCheckboxes('layerImageCheck', e.target.checked));
+});
+document.querySelectorAll('.layerDrawCheck').forEach(cb => {
+    cb.addEventListener('change', (e) => syncLayerCheckboxes('layerDrawCheck', e.target.checked));
+});
+document.querySelectorAll('.layerTextCheck').forEach(cb => {
+    cb.addEventListener('change', (e) => syncLayerCheckboxes('layerTextCheck', e.target.checked));
+});
 
 // Synchronizace UI s vybraným objektem
 canvas.on('selection:created', syncUIWithSelection);
@@ -1341,6 +1433,31 @@ function syncUIWithSelection() {
             if (typeof setFontPickerValue === 'function') {
                 setFontPickerValue(obj.fontFamily);
             }
+        }
+        
+        // Synchronizace zarovnání textu
+        const align = obj.textAlign || 'left';
+        document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('bg-pink-200'));
+        const alignBtn = document.getElementById('align' + align.charAt(0).toUpperCase() + align.slice(1));
+        if (alignBtn) alignBtn.classList.add('bg-pink-200');
+        
+        // Synchronizace stylů textu
+        const isBold = obj.fontWeight === 'bold';
+        const isItalic = obj.fontStyle === 'italic';
+        const isUnderline = obj.underline === true;
+        const isLinethrough = obj.linethrough === true;
+        
+        document.getElementById('textBold').classList.toggle('bg-pink-200', isBold);
+        document.getElementById('textItalic').classList.toggle('bg-pink-200', isItalic);
+        document.getElementById('textUnderline').classList.toggle('bg-pink-200', isUnderline);
+        document.getElementById('textLinethrough').classList.toggle('bg-pink-200', isLinethrough);
+        
+        // Aktualizace globálních proměnných stylů
+        if (typeof textStyles !== 'undefined') {
+            textStyles.bold = isBold;
+            textStyles.italic = isItalic;
+            textStyles.underline = isUnderline;
+            textStyles.linethrough = isLinethrough;
         }
     }
 }
@@ -1452,7 +1569,6 @@ document.getElementById('strokeCap').addEventListener('change', e => {
 
 function getDashFromUI() {
     const val = document.getElementById('strokeStyle').value;
-    if (val === 'dashed') return [10, 5];
     if (val === 'dotted') return [2, 6];
     return null;
 }
@@ -1469,6 +1585,17 @@ document.getElementById('addTextBtn').addEventListener('click', () => {
     const textValue = document.getElementById('textInput').value.trim();
     if (!textValue) return;
 
+    // Získání aktuálního zarovnání
+    let currentAlign = 'left';
+    if (document.getElementById('alignCenter').classList.contains('bg-pink-200')) currentAlign = 'center';
+    if (document.getElementById('alignRight').classList.contains('bg-pink-200')) currentAlign = 'right';
+
+    // Získání aktuálních stylů
+    const isBold = document.getElementById('textBold').classList.contains('bg-pink-200');
+    const isItalic = document.getElementById('textItalic').classList.contains('bg-pink-200');
+    const isUnderline = document.getElementById('textUnderline').classList.contains('bg-pink-200');
+    const isLinethrough = document.getElementById('textLinethrough').classList.contains('bg-pink-200');
+
     const text = new fabric.IText(textValue, {
         left: canvas.width / 2,
         top: canvas.height / 2,
@@ -1477,9 +1604,14 @@ document.getElementById('addTextBtn').addEventListener('click', () => {
         fill: document.getElementById('textColor').value,
         fontSize: parseInt(document.getElementById('textSize').value),
         fontFamily: document.getElementById('textFont').value,
+        textAlign: currentAlign,
+        fontWeight: isBold ? 'bold' : 'normal',
+        fontStyle: isItalic ? 'italic' : 'normal',
+        underline: isUnderline,
+        linethrough: isLinethrough,
         selectable: true,
         evented: true,
-        layer: 'draw'
+        layer: 'text'
     });
 
     canvas.add(text);
@@ -1502,6 +1634,70 @@ document.getElementById('textSize').addEventListener('input', e => {
 document.getElementById('textColor').addEventListener('input', e => {
     applyToActiveText({ fill: e.target.value });
 });
+
+// Zarovnání textu
+let currentTextAlign = 'left';
+
+function setTextAlign(align) {
+    currentTextAlign = align;
+    
+    // Aktualizace UI tlačítek
+    document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('bg-pink-200'));
+    document.getElementById('align' + align.charAt(0).toUpperCase() + align.slice(1)).classList.add('bg-pink-200');
+    
+    // Aplikace na aktivní text
+    applyToActiveText({ textAlign: align });
+}
+
+document.getElementById('alignLeft').addEventListener('click', () => setTextAlign('left'));
+document.getElementById('alignCenter').addEventListener('click', () => setTextAlign('center'));
+document.getElementById('alignRight').addEventListener('click', () => setTextAlign('right'));
+
+// Styly textu (tučné, kurzíva, podtržení, přeškrtnutí)
+let textStyles = {
+    bold: false,
+    italic: false,
+    underline: false,
+    linethrough: false
+};
+
+function toggleTextStyle(style) {
+    textStyles[style] = !textStyles[style];
+    
+    const btnMap = {
+        bold: 'textBold',
+        italic: 'textItalic',
+        underline: 'textUnderline',
+        linethrough: 'textLinethrough'
+    };
+    
+    const btn = document.getElementById(btnMap[style]);
+    if (textStyles[style]) {
+        btn.classList.add('bg-pink-200');
+    } else {
+        btn.classList.remove('bg-pink-200');
+    }
+    
+    // Aplikace na aktivní text
+    const obj = canvas.getActiveObject();
+    if (obj && obj.type === 'i-text') {
+        if (style === 'bold') {
+            obj.set('fontWeight', textStyles.bold ? 'bold' : 'normal');
+        } else if (style === 'italic') {
+            obj.set('fontStyle', textStyles.italic ? 'italic' : 'normal');
+        } else if (style === 'underline') {
+            obj.set('underline', textStyles.underline);
+        } else if (style === 'linethrough') {
+            obj.set('linethrough', textStyles.linethrough);
+        }
+        canvas.requestRenderAll();
+    }
+}
+
+document.getElementById('textBold').addEventListener('click', () => toggleTextStyle('bold'));
+document.getElementById('textItalic').addEventListener('click', () => toggleTextStyle('italic'));
+document.getElementById('textUnderline').addEventListener('click', () => toggleTextStyle('underline'));
+document.getElementById('textLinethrough').addEventListener('click', () => toggleTextStyle('linethrough'));
 
 // Font Picker Dropdown
 const fontCategories = {
