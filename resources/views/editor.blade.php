@@ -753,9 +753,9 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
     const cropVisualWidth = cropBounds.width;
     const cropVisualHeight = cropBounds.height;
 
-    // Uložení všech objektů 
+    // Uložení všech objektů (kreslení + text)
     const drawObjectsToClone = canvas.getObjects().filter(obj => 
-        obj.layer === 'draw' && obj !== eraserCursor
+        (obj.layer === 'draw' || obj.layer === 'text') && obj !== eraserCursor
     );
     
     const clonePromises = drawObjectsToClone.map(obj => {
@@ -768,7 +768,7 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
                 cloned.set({
                     left: relativeLeft,
                     top: relativeTop,
-                    layer: 'draw'
+                    layer: obj.layer 
                 });
                 
                 resolve(cloned);
