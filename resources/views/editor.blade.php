@@ -444,15 +444,55 @@
 </div>
 
     <!-- Canvas vpravo -->
-    <div class="flex-1 flex justify-center items-center bg-gray-50">
+    <div class="flex-1 flex justify-center items-center bg-gray-50 relative">
         <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
+        
+        <!-- Kontextové menu -->
+        <div id="contextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="bringForward">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                </svg>
+                Dopředu
+            </button>
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="sendBackward">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+                Dozadu
+            </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="bringToFront">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                    <path d="M5 5h14"/>
+                </svg>
+                Na vrch
+            </button>
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="sendToBack">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                    <path d="M5 19h14"/>
+                </svg>
+                Na spodek
+            </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 flex items-center gap-2" data-action="delete">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+                </svg>
+                Smazat
+            </button>
+        </div>
     </div>
 </div>
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script>
-const canvas = new fabric.Canvas('canvas');
+const canvas = new fabric.Canvas('canvas', {
+    preserveObjectStacking: true  // Zachová pořadí vrstev při výběru objektu
+});
 let currentImage = null;
 
 let cropRect = null;
@@ -468,6 +508,7 @@ let lastPosX, lastPosY;
 let drawMode = null; // 'line' | 'circle' | 'angle'
 let line, circle, rect, triangle, rightTriangle, ellipse, star, heart, arrow, speechBubble, roundedSpeechBubble, roundedRect, plusShape, minusShape, crossShape;
 let origX, origY;
+let lastCreatedObject = null; // Spolehlivá reference na právě vytvořený objekt
 
 // Vizuální kurzor gumy
 let eraserCursor = null;
@@ -562,6 +603,7 @@ canvas.on('mouse:down', (o) => {
                  layer: 'draw'
             });
             canvas.add(line);
+            lastCreatedObject = line;
         }
 
         if (drawMode === 'circle') {
@@ -584,6 +626,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(circle);
+            lastCreatedObject = circle;
         }
 
         if (drawMode === 'rect') {
@@ -605,6 +648,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(rect);
+            lastCreatedObject = rect;
         }
 
         if (drawMode === 'triangle') {
@@ -628,6 +672,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(triangle);
+            lastCreatedObject = triangle;
         }
 
         if (drawMode === 'rightTriangle') {
@@ -651,6 +696,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(rightTriangle);
+            lastCreatedObject = rightTriangle;
         }
 
         if (drawMode === 'ellipse') {
@@ -672,6 +718,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(ellipse);
+            lastCreatedObject = ellipse;
         }
 
         if (drawMode === 'star') {
@@ -701,6 +748,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(star);
+            lastCreatedObject = star;
         }
 
         if (drawMode === 'heart') {
@@ -723,6 +771,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(heart);
+            lastCreatedObject = heart;
         }
 
         if (drawMode === 'arrow') {
@@ -752,6 +801,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(arrow);
+            lastCreatedObject = arrow;
         }
 
         if (drawMode === 'speechBubble') {
@@ -781,6 +831,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(speechBubble);
+            lastCreatedObject = speechBubble;
         }
 
         if (drawMode === 'roundedSpeechBubble') {
@@ -803,6 +854,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(roundedSpeechBubble);
+            lastCreatedObject = roundedSpeechBubble;
         }
 
         if (drawMode === 'roundedRect') {
@@ -826,6 +878,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(roundedRect);
+            lastCreatedObject = roundedRect;
         }
 
         if (drawMode === 'arrowRight') {
@@ -851,6 +904,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(plusShape);
+            lastCreatedObject = plusShape;
         }
 
         if (drawMode === 'hexagon') {
@@ -878,6 +932,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(minusShape);
+            lastCreatedObject = minusShape;
         }
 
         if (drawMode === 'cross') {
@@ -897,6 +952,7 @@ canvas.on('mouse:down', (o) => {
                 layer: 'draw'
             });
             canvas.add(crossShape);
+            lastCreatedObject = crossShape;
         }
 
         return;
@@ -985,11 +1041,10 @@ canvas.on('mouse:move', (o) => {
                 strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
-                hoverCursor: 'default',
                 layer: 'draw'
             });
             canvas.add(triangle);
-            triangle.bringToFront();
+            lastCreatedObject = triangle;
         }
 
         if (drawMode === 'rightTriangle' && isDown) {
@@ -1013,11 +1068,10 @@ canvas.on('mouse:move', (o) => {
                 strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
-                hoverCursor: 'default',
                 layer: 'draw'
             });
             canvas.add(rightTriangle);
-            rightTriangle.bringToFront();
+            lastCreatedObject = rightTriangle;
         }
 
         if (drawMode === 'ellipse' && isDown) {
@@ -1059,11 +1113,10 @@ canvas.on('mouse:move', (o) => {
                 strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
-                hoverCursor: 'default',
                 layer: 'draw'
             });
             canvas.add(star);
-            star.bringToFront();
+            lastCreatedObject = star;
         }
 
         if (drawMode === 'heart' && isDown) {
@@ -1141,11 +1194,10 @@ canvas.on('mouse:move', (o) => {
                 strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
-                hoverCursor: 'default',
                 layer: 'draw'
             });
             canvas.add(minusShape);
-            minusShape.bringToFront();
+            lastCreatedObject = minusShape;
         }
 
         if (drawMode === 'cross' && isDown) {
@@ -1174,14 +1226,36 @@ canvas.on('mouse:move', (o) => {
 
 canvas.on('mouse:up', () => {
     if (drawMode && isDown) {
-        // Po dokončení kreslení nastavit objekt jako selectable
-        const lastObj = [line, circle, rect, triangle, rightTriangle, ellipse, star, heart, arrow, speechBubble, roundedSpeechBubble, roundedRect, plusShape, minusShape, crossShape].find(obj => obj !== null);
-        if (lastObj) {
-            lastObj.set({
+        // Použít spolehlivou referenci na právě vytvořený objekt
+        const objToSelect = lastCreatedObject;
+        
+        if (objToSelect) {
+            objToSelect.set({
                 selectable: true,
                 evented: true
             });
+            
+            // Automaticky přepnout na kurzor a vybrat objekt
+            canvas.isDrawingMode = false;
+            drawMode = null;
+            canvas.selection = true;
+            lockImage(false);
+            setActiveTool(document.getElementById('drawSelectBtn'));
+            
+            canvas.getObjects().forEach(obj => {
+                const isBlank = obj._element?.src?.includes('blank_');
+                obj.selectable = !isBlank;
+                obj.evented = !isBlank;
+            });
+            
+            // Vybrat nakreslený objekt
+            setTimeout(() => {
+                canvas.setActiveObject(objToSelect);
+                canvas.requestRenderAll();
+            }, 0);
         }
+        
+        // Vynulovat všechny reference
         line = null;
         circle = null;
         rect = null;
@@ -1197,8 +1271,8 @@ canvas.on('mouse:up', () => {
         plusShape = null;
         minusShape = null;
         crossShape = null;
+        lastCreatedObject = null;
         isDown = false;
-        canvas.discardActiveObject();
         canvas.requestRenderAll();
     }
 });
@@ -1713,7 +1787,7 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
 });
 
 function getFillColor() {
-    return document.getElementById('fillTransparent').checked ? '' : document.getElementById('fillColor').value;
+    return document.getElementById('fillTransparent').checked ? 'transparent' : document.getElementById('fillColor').value;
 }
 
 function getStrokeColor() {
@@ -2117,11 +2191,12 @@ function syncUIWithSelection() {
     }
 
     // Synchronizace barvy výplně
-    if (obj.fill && obj.fill !== '') {
+    if (obj.fill === '' || obj.fill === null || obj.fill === 'transparent') {
+        document.getElementById('fillTransparent').checked = true;
+        // Neměnit fillColor - nechat předchozí hodnotu
+    } else if (obj.fill) {
         document.getElementById('fillColor').value = obj.fill;
         document.getElementById('fillTransparent').checked = false;
-    } else if (obj.fill === '' || obj.fill === null || obj.fill === 'transparent') {
-        document.getElementById('fillTransparent').checked = true;
     }
 
     // Synchronizace šířky čáry
@@ -2523,6 +2598,84 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// ========== KONTEXTOVÉ MENU ==========
+const contextMenu = document.getElementById('contextMenu');
+let contextTarget = null;
+
+// Zobrazení kontextového menu na pravé tlačítko
+canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    
+    const pointer = canvas.getPointer(e);
+    const target = canvas.findTarget(e, false);
+    
+    if (target && target !== currentImage && !target._element?.src?.includes('blank_')) {
+        contextTarget = target;
+        canvas.setActiveObject(target);
+        canvas.requestRenderAll();
+        
+        // Pozice menu
+        const rect = canvas.upperCanvasEl.getBoundingClientRect();
+        contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
+        contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+        contextMenu.classList.remove('hidden');
+    } else {
+        hideContextMenu();
+    }
+});
+
+// Skrytí menu při kliknutí jinam
+document.addEventListener('click', function(e) {
+    if (!contextMenu.contains(e.target)) {
+        hideContextMenu();
+    }
+});
+
+// Skrytí při scrollu nebo klávese Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideContextMenu();
+    }
+});
+
+function hideContextMenu() {
+    contextMenu.classList.add('hidden');
+    contextTarget = null;
+}
+
+// Akce kontextového menu
+document.querySelectorAll('.context-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        if (!contextTarget) return;
+        
+        const action = this.dataset.action;
+        
+        switch(action) {
+            case 'bringForward':
+                canvas.bringForward(contextTarget);
+                break;
+            case 'sendBackward':
+                canvas.sendBackwards(contextTarget);
+                break;
+            case 'bringToFront':
+                canvas.bringToFront(contextTarget);
+                break;
+            case 'sendToBack':
+                // Pošli dozadu, ale ne pod obrázek
+                canvas.sendToBack(contextTarget);
+                if (currentImage) {
+                    canvas.sendToBack(currentImage);
+                }
+                break;
+            case 'delete':
+                canvas.remove(contextTarget);
+                break;
+        }
+        
+        canvas.requestRenderAll();
+        hideContextMenu();
+    });
+});
 
 
 </script>
