@@ -483,6 +483,21 @@
                 </svg>
                 Smazat
             </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="copy">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+                Kopírovat
+            </button>
+            <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="paste">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                </svg>
+                Vložit
+            </button>
         </div>
     </div>
 </div>
@@ -1785,6 +1800,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         }
 
         canvas.selection = true;
+        
+        // Odemknout obrázek při opuštění sekce kreslení (pokud není šablona)
+        if (currentImage) {
+            const isBlank = currentImage._element?.src?.includes('blank_');
+            if (!isBlank) {
+                currentImage.set({
+                    lockMovementX: false,
+                    lockMovementY: false,
+                    lockScalingX: false,
+                    lockScalingY: false,
+                    lockRotation: false,
+                    hasControls: true,
+                    hasBorders: true,
+                    selectable: true,
+                    evented: true
+                });
+                // Resetovat stav tlačítka zámku
+                document.getElementById('lockObjectBtn').classList.remove('active');
+            }
+        }
 
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
         document.getElementById(btn.dataset.target).classList.remove('hidden');
@@ -2211,6 +2246,9 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Delete' || e.key === 'Backspace') {
         const activeObj = canvas.getActiveObject();
         if (!activeObj) return;
+        
+        // Nikdy nemazat obrázek
+        if (activeObj === currentImage) return;
 
         // Pokud je to text v editačním režimu, necháme Fabric.js zpracovat klávesu
         if (activeObj.type === 'i-text' && activeObj.isEditing) {
@@ -2726,6 +2764,68 @@ function hideContextMenu() {
     contextTarget = null;
 }
 
+// Clipboard pro kopírování/vkládání
+let clipboard = null;
+
+function copyObject() {
+    const obj = canvas.getActiveObject();
+    if (!obj || obj === currentImage) return;
+    
+    obj.clone(function(cloned) {
+        clipboard = cloned;
+    });
+}
+
+function pasteObject() {
+    if (!clipboard) return;
+    
+    clipboard.clone(function(clonedObj) {
+        canvas.discardActiveObject();
+        
+        clonedObj.set({
+            left: clonedObj.left + 20,
+            top: clonedObj.top + 20,
+            evented: true,
+            selectable: true
+        });
+        
+        if (clonedObj.type === 'activeSelection') {
+            clonedObj.canvas = canvas;
+            clonedObj.forEachObject(function(obj) {
+                canvas.add(obj);
+            });
+            clonedObj.setCoords();
+        } else {
+            canvas.add(clonedObj);
+        }
+        
+        clipboard.top += 20;
+        clipboard.left += 20;
+        canvas.setActiveObject(clonedObj);
+        canvas.requestRenderAll();
+    });
+}
+
+// Klávesové zkratky Ctrl+C a Ctrl+V
+document.addEventListener('keydown', function(e) {
+    // Ctrl+C - kopírovat
+    if (e.ctrlKey && e.key === 'c') {
+        const obj = canvas.getActiveObject();
+        if (obj && obj !== currentImage) {
+            e.preventDefault();
+            copyObject();
+        }
+    }
+    
+    // Ctrl+V - vložit
+    if (e.ctrlKey && e.key === 'v') {
+        if (clipboard) {
+            e.preventDefault();
+            pasteObject();
+        }
+    }
+});
+
 // Akce kontextového menu
 document.querySelectorAll('.context-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -2751,7 +2851,19 @@ document.querySelectorAll('.context-btn').forEach(btn => {
                 }
                 break;
             case 'delete':
-                canvas.remove(contextTarget);
+                if (contextTarget !== currentImage) {
+                    canvas.remove(contextTarget);
+                }
+                break;
+            case 'copy':
+                if (contextTarget !== currentImage) {
+                    contextTarget.clone(function(cloned) {
+                        clipboard = cloned;
+                    });
+                }
+                break;
+            case 'paste':
+                pasteObject();
                 break;
         }
         
