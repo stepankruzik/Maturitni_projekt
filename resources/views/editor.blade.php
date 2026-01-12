@@ -283,22 +283,22 @@
         </svg>
     </button>
 
-    <!-- kapátko -->
-    <button id="drawEyedropperBtn" class="tool-btn" title="Kapátko">
+    <!-- pravítko -->
+    <button id="toggleRulerBtn" class="tool-btn" title="Pravítko">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="m2 22 1-1h3l9-9"/>
-            <path d="M3 21v-3l9-9"/>
-            <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l-3-3z"/>
+            <path d="M21.3 8.7 8.7 21.3c-1 1-2.5 1-3.4 0l-2.6-2.6c-1-1-1-2.5 0-3.4L15.3 2.7c1-1 2.5-1 3.4 0l2.6 2.6c1 1 1 2.5 0 3.4Z"/>
+            <path d="m7.5 10.5 2 2"/>
+            <path d="m10.5 7.5 2 2"/>
+            <path d="m13.5 4.5 2 2"/>
+            <path d="m4.5 13.5 2 2"/>
         </svg>
     </button>
 
-    <!-- kyblík -->
-    <button id="drawBucketBtn" class="tool-btn" title="Kyblík barev">
+    <!-- zamknout obrázek -->
+    <button id="lockObjectBtn" class="tool-btn" title="Zamknout/Odemknout obrázek">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/>
-            <path d="m5 2 5 5"/>
-            <path d="M2 13h15"/>
-            <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/>
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
     </button>
 
@@ -544,48 +544,6 @@ function hideEraserCursor() {
 canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
-
-    // Kapátko - výběr barvy
-    if (drawMode === 'eyedropper') {
-        // Použití lowerCanvasEl pro získání pixelů
-        const ctx = canvas.lowerCanvasEl.getContext('2d');
-        const x = Math.floor(pointer.x);
-        const y = Math.floor(pointer.y);
-        const pixel = ctx.getImageData(x, y, 1, 1).data;
-        
-        if (pixel[3] > 0) { // Pokud pixel není transparentní
-            const hex = '#' + [pixel[0], pixel[1], pixel[2]].map(x => {
-                const h = x.toString(16);
-                return h.length === 1 ? '0' + h : h;
-            }).join('');
-            
-            document.getElementById('drawColor').value = hex;
-            document.getElementById('fillColor').value = hex;
-        }
-        return;
-    }
-
-    // Kyblík - vyplnění objektu
-    if (drawMode === 'bucket') {
-        const objects = canvas.getObjects();
-        let target = null;
-        
-        // Hledání objektu pod kurzorem (od nejvyššího)
-        for (let i = objects.length - 1; i >= 0; i--) {
-            const obj = objects[i];
-            if (obj === currentImage) continue;
-            if (obj.containsPoint(pointer)) {
-                target = obj;
-                break;
-            }
-        }
-        
-        if (target) {
-            target.set('fill', getFillColor());
-            canvas.requestRenderAll();
-        }
-        return;
-    }
 
     if (drawMode) {
         isDown = true;
@@ -1372,7 +1330,18 @@ img.set({
     hasRotatingPoint: !isBlank,
     cornerStyle: 'circle'
 });
-if (isBlank) img.sendToBack(); 
+if (isBlank) img.sendToBack();
+
+// Skrýt/zobrazit tlačítka pravítka a uzamykání podle typu obrázku
+document.getElementById('toggleRulerBtn').style.display = isBlank ? 'none' : '';
+document.getElementById('lockObjectBtn').style.display = isBlank ? 'none' : '';
+
+// Vypnout pravítko pokud je aktivní a přepneme na šablonu
+if (isBlank && rulerEnabled) {
+    rulerEnabled = false;
+    document.getElementById('toggleRulerBtn').classList.remove('active');
+    removeRulers();
+}
 
         canvas.add(img);
 
@@ -2081,22 +2050,136 @@ document.getElementById('drawEraserBtn').addEventListener('click', function () {
     lockImage(true);
 });
 
-document.getElementById('drawEyedropperBtn').addEventListener('click', function () {
-    setActiveTool(this);
-    drawMode = 'eyedropper';
-    canvas.isDrawingMode = false;
-    canvas.selection = false;
-    canvas.defaultCursor = 'crosshair';
-    lockImage(true);
+// Pravítko - toggle zobrazení rozměrů
+let rulerEnabled = false;
+let rulerLines = [];
+let rulerTexts = [];
+
+document.getElementById('toggleRulerBtn').addEventListener('click', function() {
+    rulerEnabled = !rulerEnabled;
+    this.classList.toggle('active', rulerEnabled);
+    
+    if (rulerEnabled) {
+        drawRulers();
+    } else {
+        removeRulers();
+    }
 });
 
-document.getElementById('drawBucketBtn').addEventListener('click', function () {
-    setActiveTool(this);
-    drawMode = 'bucket';
-    canvas.isDrawingMode = false;
-    canvas.selection = false;
-    canvas.defaultCursor = 'crosshair';
-    lockImage(true);
+function drawRulers() {
+    removeRulers();
+    
+    // Získat viewport transform pro správné umístění
+    const vpt = canvas.viewportTransform;
+    const zoom = canvas.getZoom();
+    
+    // Vypočítat viditelnou oblast
+    const visibleLeft = -vpt[4] / zoom;
+    const visibleTop = -vpt[5] / zoom;
+    const visibleWidth = canvas.getWidth() / zoom;
+    const visibleHeight = canvas.getHeight() / zoom;
+    
+    const step = 50; // každých 50px
+    
+    // Zaokrouhlit start na násobek stepu
+    const startX = Math.floor(visibleLeft / step) * step;
+    const startY = Math.floor(visibleTop / step) * step;
+    
+    // Horizontální pravítko (nahoře na viditelné oblasti)
+    for (let x = startX; x <= visibleLeft + visibleWidth; x += step) {
+        const line = new fabric.Line([x, visibleTop, x, visibleTop + 15 / zoom], {
+            stroke: '#666',
+            strokeWidth: 1 / zoom,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            isRuler: true
+        });
+        const text = new fabric.Text(Math.round(x).toString(), {
+            left: x + 2 / zoom,
+            top: visibleTop + 2 / zoom,
+            fontSize: 10 / zoom,
+            fill: '#666',
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            isRuler: true
+        });
+        canvas.add(line, text);
+        rulerLines.push(line);
+        rulerTexts.push(text);
+    }
+    
+    // Vertikální pravítko (vlevo na viditelné oblasti)
+    for (let y = startY; y <= visibleTop + visibleHeight; y += step) {
+        const line = new fabric.Line([visibleLeft, y, visibleLeft + 15 / zoom, y], {
+            stroke: '#666',
+            strokeWidth: 1 / zoom,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            isRuler: true
+        });
+        const text = new fabric.Text(Math.round(y).toString(), {
+            left: visibleLeft + 2 / zoom,
+            top: y + 2 / zoom,
+            fontSize: 10 / zoom,
+            fill: '#666',
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            isRuler: true
+        });
+        canvas.add(line, text);
+        rulerLines.push(line);
+        rulerTexts.push(text);
+    }
+    
+    canvas.requestRenderAll();
+}
+
+function removeRulers() {
+    rulerLines.forEach(line => canvas.remove(line));
+    rulerTexts.forEach(text => canvas.remove(text));
+    rulerLines = [];
+    rulerTexts = [];
+    canvas.requestRenderAll();
+}
+
+// Zamknutí/odemknutí obrázku
+document.getElementById('lockObjectBtn').addEventListener('click', function() {
+    if (!currentImage) {
+        alert('Není načten žádný obrázek');
+        return;
+    }
+    
+    // Šablony (blank) nelze odemknout
+    const isBlank = currentImage._element?.src?.includes('blank_');
+    if (isBlank) {
+        alert('Šablonu nelze odemknout');
+        return;
+    }
+    
+    // Toggle lock stavu
+    const isLocked = currentImage.lockMovementX && currentImage.lockMovementY;
+    
+    currentImage.set({
+        lockMovementX: !isLocked,
+        lockMovementY: !isLocked,
+        lockScalingX: !isLocked,
+        lockScalingY: !isLocked,
+        lockRotation: !isLocked,
+        hasControls: isLocked,
+        hasBorders: isLocked,
+        selectable: isLocked,
+        evented: isLocked
+    });
+    
+    // Vizualizace stavu tlačítka
+    this.classList.toggle('active', !isLocked);
+    
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
 });
 
 // Skrytí kurzoru gumy při změně nástroje
