@@ -1,5 +1,10 @@
 <x-layout>
     <x-slot:heading>Editor obrázku</x-slot:heading>
+    <div class="flex gap-2 mb-3">
+  <button id="undoBtn" class="px-3 py-1 bg-gray-700 text-white rounded" disabled>Undo</button>
+  <button id="redoBtn" class="px-3 py-1 bg-gray-700 text-white rounded" disabled>Redo</button>
+</div>
+
     <div class="flex gap-2 mb-4">
         <button class="tab-btn px-3 py-1 bg-blue-500 text-white rounded" data-target="panelResize">Resize/Ořez</button>
         <button class="tab-btn px-3 py-1 bg-green-500 text-white rounded" data-target="panelFilters">Filtry</button>
@@ -508,6 +513,118 @@
 const canvas = new fabric.Canvas('canvas', {
     preserveObjectStacking: true  // Zachová pořadí vrstev při výběru objektu
 });
+// UNDO / REDO 
+const HISTORY = {
+  undoStack: [],
+  redoStack: [],
+  isRestoring: false,
+  max: 50,
+  extraProps: [
+    'layer', 'erasable', 'excludeFromExport', 'isRuler',
+    'selectable', 'evented'
+  ],
+};
+
+function isHistoryObject(obj) {
+  if (!obj) return false;
+  if (obj === eraserCursor) return false;
+  if (typeof snapIndicator !== 'undefined' && obj === snapIndicator) return false;
+  if (typeof lengthIndicator !== 'undefined' && obj === lengthIndicator) return false;
+  if (obj.isRuler) return false;
+  if (obj === cropRect) return false;
+  return true;
+}
+
+function saveHistoryState(reason = '') {
+  if (HISTORY.isRestoring) return;
+  if (historyBatch) return;
+
+  const json = canvas.toDatalessJSON(HISTORY.extraProps);
+
+  const str = JSON.stringify(json);
+
+  // anti-duplicate: neukládej stejný stav dvakrát po sobě
+  const last = HISTORY.undoStack[HISTORY.undoStack.length - 1];
+  if (last === str) return;
+
+  HISTORY.undoStack.push(str);
+  if (HISTORY.undoStack.length > HISTORY.max) HISTORY.undoStack.shift();
+
+  HISTORY.redoStack.length = 0;
+
+  updateUndoRedoButtons();
+}
+
+function cleanupAfterRestore() {
+    // skryj indikátory
+    if (typeof snapIndicator !== 'undefined' && snapIndicator) snapIndicator.visible = false;
+    if (typeof lengthIndicator !== 'undefined' && lengthIndicator) lengthIndicator.visible = false;
+    hideEraserCursor?.();
+
+    canvas.getObjects().forEach(o => {
+        if (o.isRuler) canvas.remove(o);
+    });
+
+    canvas.getObjects().forEach(o => {
+        if (o.type === 'line' && o.layer === 'draw') {
+            enableLineEndpointsControls(o);
+            o.setCoords();
+        }
+    });
+
+    // Obnov velikost canvasu a viewportTransform
+    canvas.setWidth(MAX_CANVAS_WIDTH);
+    canvas.setHeight(MAX_CANVAS_HEIGHT);
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+
+    // Pokud je obrázek, centrovat ho
+    const img = canvas.getObjects().find(o => o.type === 'image');
+    if (img) {
+        img.left = canvas.width / 2;
+        img.top = canvas.height / 2;
+        img.setCoords();
+    }
+
+    canvas.requestRenderAll();
+    updateUndoRedoButtons();
+}
+
+function restoreFromString(str) {
+  HISTORY.isRestoring = true;
+
+  const json = JSON.parse(str);
+  canvas.loadFromJSON(json, () => {
+    HISTORY.isRestoring = false;
+    cleanupAfterRestore();
+  }, (o, object) => {
+
+  });
+}
+
+function undo() {
+  if (HISTORY.undoStack.length <= 1) return; 
+  const current = HISTORY.undoStack.pop();
+  HISTORY.redoStack.push(current);
+
+  const prev = HISTORY.undoStack[HISTORY.undoStack.length - 1];
+  restoreFromString(prev);
+}
+
+function redo() {
+  if (!HISTORY.redoStack.length) return;
+  const next = HISTORY.redoStack.pop();
+  HISTORY.undoStack.push(next);
+  restoreFromString(next);
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  if (undoBtn) undoBtn.disabled = HISTORY.undoStack.length <= 1;
+  if (redoBtn) redoBtn.disabled = HISTORY.redoStack.length === 0;
+}
+
+
 let currentImage = null;
 
 let cropRect = null;
@@ -526,6 +643,18 @@ let origX, origY;
 let lastCreatedObject = null; // Spolehlivá reference na právě vytvořený objekt
 
 // Vizuální kurzor gumy
+let snapIndicator = null;
+let lengthIndicator = null;
+let historyBatch = false;
+let filterHistoryTimer = null;
+
+function scheduleFilterHistory() {
+    clearTimeout(filterHistoryTimer);
+    filterHistoryTimer = setTimeout(() => {
+        saveHistoryState('filters');
+    }, 300);
+}
+
 let eraserCursor = null;
 let ERASER_RADIUS = 20;
 
@@ -562,6 +691,7 @@ canvas.on('mouse:down', (o) => {
 
     if (drawMode) {
         isDown = true;
+        historyBatch = true;
 
         const width = parseInt(document.getElementById('brushWidth').value);
         if (drawMode === 'line') {
@@ -1246,6 +1376,8 @@ canvas.on('mouse:up', () => {
         crossShape = null;
         lastCreatedObject = null;
         isDown = false;
+        historyBatch = false;
+        saveHistoryState('draw-finished');
         canvas.requestRenderAll();
     }
 });
@@ -1363,6 +1495,7 @@ if (isBlank && rulerEnabled) {
 
         fitImageToCanvas(img);
         fitObjectToViewport(img);
+        saveHistoryState('init');
         updateImageSize();
     }, { crossOrigin: 'anonymous' });
 }
@@ -1441,6 +1574,7 @@ document.getElementById('toggleMode').addEventListener('click', () => {
 document.getElementById('cropBtn').addEventListener('click', async () => {
     if (!currentImage || !cropRect) return;
 
+    historyBatch = true;
     const img = currentImage;
     const rect = cropRect;
 
@@ -1552,6 +1686,9 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
         mode = 'resize';
         document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
         canvas.selection = true;
+
+        historyBatch = false;
+        saveHistoryState('crop');
     });
 });
 
@@ -1604,7 +1741,7 @@ document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input =
 
 // Posuvníky
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
-    input.addEventListener('input', applyFilters);
+    input.addEventListener('input', () => { applyFilters(); scheduleFilterHistory(); });
 });
 
 // Drag / Pan
@@ -2844,11 +2981,8 @@ document.querySelectorAll('.context-btn').forEach(btn => {
                 canvas.bringToFront(contextTarget);
                 break;
             case 'sendToBack':
-                // Pošli dozadu, ale ne pod obrázek
+                // Pošli objekt úplně na spodek (i pod obrázek)
                 canvas.sendToBack(contextTarget);
-                if (currentImage) {
-                    canvas.sendToBack(currentImage);
-                }
                 break;
             case 'delete':
                 if (contextTarget !== currentImage) {
@@ -2872,6 +3006,49 @@ document.querySelectorAll('.context-btn').forEach(btn => {
     });
 });
 
+document.getElementById('undoBtn')?.addEventListener('click', undo);
+document.getElementById('redoBtn')?.addEventListener('click', redo);
+
+document.addEventListener('keydown', (e) => {
+  const isMac = navigator.platform.toUpperCase().includes('MAC');
+  const ctrl = isMac ? e.metaKey : e.ctrlKey;
+
+  if (!ctrl) return;
+
+  // když uživatel edituje text (IText) – neber mu Ctrl+Z
+  const active = canvas.getActiveObject();
+  if (active && active.type === 'i-text' && active.isEditing) return;
+
+  if (e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) redo();
+    else undo();
+  }
+
+  if (e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redo();
+  }
+});
+
+// Automatické ukládání historie
+canvas.on('object:added', (e) => {
+  if (HISTORY.isRestoring) return;
+  if (!isHistoryObject(e.target)) return;
+  saveHistoryState('added');
+});
+
+canvas.on('object:removed', (e) => {
+  if (HISTORY.isRestoring) return;
+  if (!isHistoryObject(e.target)) return;
+  saveHistoryState('removed');
+});
+
+canvas.on('object:modified', (e) => {
+  if (HISTORY.isRestoring) return;
+  if (!isHistoryObject(e.target)) return;
+  saveHistoryState('modified');
+});
 
 </script>
 
