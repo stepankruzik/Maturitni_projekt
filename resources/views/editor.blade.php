@@ -1,8 +1,18 @@
 <x-layout>
     <x-slot:heading>Editor obrázku</x-slot:heading>
     <div class="flex gap-2 mb-3">
-  <button id="undoBtn" class="px-3 py-1 bg-gray-700 text-white rounded" disabled>Undo</button>
-  <button id="redoBtn" class="px-3 py-1 bg-gray-700 text-white rounded" disabled>Redo</button>
+    <button id="undoBtn" class="px-3 py-1 bg-gray-700 text-white rounded transition-all duration-150 active:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Zpět">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo2-icon lucide-undo-2 w-5 h-5 inline">
+            <path d="M9 14 4 9l5-5"/>
+            <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>
+        </svg>
+    </button>
+    <button id="redoBtn" class="px-3 py-1 bg-gray-700 text-white rounded transition-all duration-150 active:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Dopředu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-redo2-icon lucide-redo-2 w-5 h-5 inline" style="transform: scaleX(-1);">
+            <path d="M9 14 4 9l5-5"/>
+            <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>
+        </svg>
+    </button>
 </div>
 
     <div class="flex gap-2 mb-4">
@@ -186,20 +196,20 @@
         </button>
         <!-- Šipka -->
         <button id="drawArrowBtn" class="tool-btn" title="Šipka">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M2 12L22 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M16 6L22 12L16 18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
         <!-- bublina -->
         <button id="drawSpeechBubbleBtn" class="tool-btn" title="Bublina">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 4H20V16H5.17L4 17.17V4Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
         <!-- oblá bublina -->
         <button id="drawRoundedSpeechBubbleBtn" class="tool-btn" title="Oblá bublina">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 5C4 3.89543 4.89543 3 6 3H18C19.1046 3 20 3.89543 20 5V15C20 16.1046 19.1046 17 18 17H6L4 19V5Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
@@ -208,26 +218,26 @@
      <div class="flex gap-2 mb-4 justify-around">
         <!-- zaoblený obdélník -->
         <button id="drawRoundedRectBtn" class="tool-btn" title="Zaoblený obdélník">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="4" y="4" width="16" height="16" rx="4" ry="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
         <!-- zakřivená šipka -->
         <button id="drawArrowRightBtn" class="tool-btn" title="Zakřivená šipka">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 17 Q 3 7, 13 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M9 3 L 13 7 L 9 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
         <!-- šestiúhelník -->
         <button id="drawHexagonBtn" class="tool-btn" title="Šestiúhelník">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
         <!-- křížek -->
         <button id="drawCrossBtn" class="tool-btn" title="Křížek">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="5" y1="5" x2="19" y2="19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <line x1="19" y1="5" x2="5" y2="19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -488,7 +498,7 @@
             <div class="border-t border-gray-200 my-1"></div>
             <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 flex items-center gap-2" data-action="delete">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
                 </svg>
                 Smazat
             </button>
@@ -602,6 +612,12 @@ function restoreFromString(str) {
     currentImage = canvas.getObjects().find(o => o.type === 'image') || null;
     HISTORY.isRestoring = false;
     cleanupAfterRestore();
+    // Oprav pozici obrázku pokud existuje
+    if (currentImage) {
+      fitObjectToViewport(currentImage);
+    }
+    // Vždy aktualizuj stav tlačítek
+    updateUndoRedoButtons();
   }, (o, object) => {
 
   });
@@ -1004,9 +1020,6 @@ canvas.on('mouse:down', (o) => {
                 strokeWidth: width,
                 strokeDashArray: getDashFromUIForWidth(width),
                 strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
                 strokeLineCap: document.getElementById('strokeCap').value,
                 selectable: false,
                 evented: false,
@@ -1501,7 +1514,7 @@ if (isBlank && rulerEnabled) {
 
         fitImageToCanvas(img);
         fitObjectToViewport(img);
-        saveHistoryState('init');
+        // saveHistoryState('init'); // Zrušeno: neukládat stav hned po načtení obrázku
         updateImageSize();
     }, { crossOrigin: 'anonymous' });
 }
