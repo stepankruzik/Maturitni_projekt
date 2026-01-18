@@ -71,6 +71,10 @@
                         </label>
                     </div>
                 </div>
+                <div>
+                    <label for="exportFileName" class="block text-sm font-medium text-gray-700 mb-1">Název souboru:</label>
+                    <input type="text" id="exportFileName" class="w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-green-500 focus:border-green-500" placeholder="např. muj-obrazek">
+                </div>
                 <button id="startDownloadBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition">
                     Stáhnout
                 </button>
@@ -523,7 +527,7 @@ const HISTORY = {
     'layer', 'erasable', 'excludeFromExport', 'isRuler',
     'selectable', 'evented'
   ],
-};
+}; 
 
 function isHistoryObject(obj) {
   if (!obj) return false;
@@ -594,6 +598,8 @@ function restoreFromString(str) {
 
   const json = JSON.parse(str);
   canvas.loadFromJSON(json, () => {
+    // Po načtení z historie znovu najdi obrázek a nastav currentImage
+    currentImage = canvas.getObjects().find(o => o.type === 'image') || null;
     HISTORY.isRestoring = false;
     cleanupAfterRestore();
   }, (o, object) => {
@@ -857,7 +863,7 @@ canvas.on('mouse:down', (o) => {
         if (drawMode === 'heart') {
             origX = pointer.x;
             origY = pointer.y;
-            const path = 'M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.58,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z';
+            const path = 'M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 14,5.08C15.09,3.81 16.76,3 18.5,3C21.58,3 24,5.41 24,8.5C24,12.27 18.6,15.36 13.45,20.03L12,21.35Z';
             heart = new fabric.Path(path, {
                 left: origX,
                 top: origY,
@@ -940,7 +946,7 @@ canvas.on('mouse:down', (o) => {
         if (drawMode === 'roundedSpeechBubble') {
             origX = pointer.x;
             origY = pointer.y;
-            const path = 'M4,5 C4,3.89543 4.89543,3 6,3 H18 C19.1046,3 20,3.89543 20,5 V15 C20,16.1046 19.1046,17 18,17 H6 L4,19 V5 Z';
+            const path = 'M4,5 C4,3.89543 4.89543,3 6,3 H18 C19.1046,3 20,3.89543 20,5 V15 C20,16.1046 19.1046,17 18,17 H6L4,19V5Z';
             roundedSpeechBubble = new fabric.Path(path, {
                 left: origX,
                 top: origY,
@@ -1017,8 +1023,8 @@ canvas.on('mouse:down', (o) => {
             for (let i = 0; i < 6; i++) {
                 const angle = (Math.PI / 3) * i - Math.PI / 6;
                 hexPoints.push({
-                    x: Math.cos(angle),
-                    y: Math.sin(angle)
+                    x: Math.cos(angle) * size,
+                    y: Math.sin(angle) * size
                 });
             }
             minusShape = new fabric.Polygon(hexPoints, {
@@ -1732,6 +1738,7 @@ document.querySelectorAll('.filter-thumb').forEach(thumb => {
         }
 
         applyFilters();
+        scheduleFilterHistory();
     });
 });
 
@@ -1844,16 +1851,15 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     const contentType = document.querySelector('input[name="exportContent"]:checked').value;
     const quality = 0.9;
     const mimeType = `image/${format === 'jpeg' ? 'jpeg' : format === 'webp' ? 'webp' : 'png'}`;
-    let filename = `export.${format}`;
+    let filenameInput = document.getElementById('exportFileName').value.trim();
+    let filename = filenameInput ? filenameInput.replace(/\.[^.]+$/, '') + '.' + format : `export.${format}`;
     let dataURL;
 
     if (contentType === 'canvas') {
-        filename = `canvas_export.${format}`;
+        if (!filenameInput) filename = `canvas_export.${format}`;
         dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
-
-    } 
- else { 
-    filename = `image_only.${format}`;
+    } else {
+        if (!filenameInput) filename = `image_only.${format}`;
     const img = currentImage;
 
     // bounding box obrázku (včetně rotace)
