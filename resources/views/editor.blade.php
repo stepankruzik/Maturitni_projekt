@@ -29,6 +29,9 @@
     <div class="w-72 bg-gray-100 border-r border-gray-300 p-4 overflow-y-auto">
         <h2 class="text-lg font-semibold mb-4">Úpravy obrázku</h2>
 
+    <button id="addImageBtn" class="w-full mb-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Přidat další obrázek</button>
+    <input type="file" id="addImageInput" accept="image/*" class="hidden">
+
         <p id="imageSize" class="text-gray-600 font-semibold mb-1"></p>
         <p id="rotationAngle" class="text-gray-600 font-semibold mb-3"></p>
 
@@ -3069,6 +3072,37 @@ canvas.on('object:modified', (e) => {
   saveHistoryState('modified');
 });
 
+// Přidání dalšího obrázku
+document.getElementById('addImageBtn').addEventListener('click', () => {
+    document.getElementById('addImageInput').click();
+});
+document.getElementById('addImageInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        fabric.Image.fromURL(evt.target.result, function(img) {
+            img.set({
+                left: canvas.width / 2,
+                top: canvas.height / 2,
+                originX: 'center',
+                originY: 'center',
+                scaleX: 1,
+                scaleY: 1,
+                selectable: true,
+                evented: true,
+                layer: 'image',
+            });
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.requestRenderAll();
+            saveHistoryState('add-image');
+        }, { crossOrigin: 'anonymous' });
+    };
+    reader.readAsDataURL(file);
+    // Reset input pro možnost vložit stejný obrázek znovu
+    e.target.value = '';
+});
 </script>
 
 </x-layout>
