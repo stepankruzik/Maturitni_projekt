@@ -350,6 +350,26 @@
 
 <div id="panelText" class="tab-panel hidden">
 
+    <div class="flex gap-2 mb-4 justify-around">
+        <!-- VÝBĚR -->
+         <button id="textSelectBtn" class="tool-btn" title="Výběr/Přesun textu">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                <path d="M13 13l6 6"/>
+            </svg>
+        </button>
+
+        <!-- Kreslení textového pole -->
+        <button id="drawTextBoxBtn" class="tool-btn" title="Nakreslit textové pole">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <path d="M14 2v6h6"/>
+                <path d="M9 13h6"/>
+                <path d="M9 17h3"/>
+            </svg>
+        </button>
+    </div>
+
     <label class="block text-sm font-medium text-gray-700 mb-2">
         Text:
         <input type="text" id="textInput"
@@ -664,6 +684,7 @@ let lastPosX, lastPosY;
 
 let drawMode = null; // 'line' | 'circle' | 'angle'
 let line, circle, rect, triangle, rightTriangle, ellipse, star, heart, arrow, speechBubble, roundedSpeechBubble, roundedRect, plusShape, minusShape, crossShape;
+let textBox = null;
 let origX, origY;
 let lastCreatedObject = null; // Spolehlivá reference na právě vytvořený objekt
 
@@ -678,6 +699,14 @@ function scheduleFilterHistory() {
     filterHistoryTimer = setTimeout(() => {
         saveHistoryState('filters');
     }, 300);
+}
+
+let textHistoryTimer = null;
+function scheduleTextHistory() {
+    clearTimeout(textHistoryTimer);
+    textHistoryTimer = setTimeout(() => {
+        saveHistoryState('text-style');
+    }, 400);
 }
 
 let eraserCursor = null;
@@ -713,6 +742,27 @@ function hideEraserCursor() {
 canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
+
+    if (drawMode === 'textBox') {
+        isDown = true;
+        origX = pointer.x;
+        origY = pointer.y;
+        textBox = new fabric.Rect({
+            left: origX,
+            top: origY,
+            width: 1,
+            height: 1,
+            fill: 'rgba(255, 105, 180, 0.3)',
+            stroke: 'hotpink',
+            strokeWidth: 1,
+            strokeDashArray: [5, 5],
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+        });
+        canvas.add(textBox);
+        return;
+    }
 
     if (drawMode) {
         isDown = true;
@@ -1099,6 +1149,20 @@ canvas.on('mouse:move', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
     
+    if (drawMode === 'textBox' && isDown) {
+        const width = pointer.x - origX;
+        const height = pointer.y - origY;
+
+        textBox.set({
+            width: Math.abs(width),
+            height: Math.abs(height),
+            left: width < 0 ? pointer.x : origX,
+            top: height < 0 ? pointer.y : origY
+        });
+        canvas.requestRenderAll();
+        return;
+    }
+
     // Zobrazení kurzoru gumy
     if (drawMode === 'eraser') {
         showEraserCursor(pointer);
@@ -1350,6 +1414,54 @@ canvas.on('mouse:move', (o) => {
 });
 
 canvas.on('mouse:up', () => {
+    if (drawMode === 'textBox' && isDown) {
+        isDown = false;
+        
+        let textObjectData;
+
+        // Check if it was a click (small drag)
+        if (textBox.width < 10 || textBox.height < 10) {
+            // It's a click, create a textbox with predefined size
+            textObjectData = {
+                left: origX,
+                top: origY,
+                width: 200, // Predefined width
+            };
+        } else {
+            // It's a drag, use the dragged dimensions
+            textObjectData = {
+                left: textBox.left,
+                top: textBox.top,
+                width: textBox.width,
+            };
+        }
+
+        canvas.remove(textBox); // remove the temporary rectangle
+        textBox = null;
+
+        const text = new fabric.Textbox(document.getElementById('textInput').value || 'Text', {
+            ...textObjectData,
+            fontSize: parseInt(document.getElementById('textSize').value),
+            fill: document.getElementById('textColor').value,
+            fontFamily: document.getElementById('textFont').value,
+            textAlign: currentTextAlign,
+            fontWeight: textStyles.bold ? 'bold' : 'normal',
+            fontStyle: textStyles.italic ? 'italic' : 'normal',
+            underline: textStyles.underline,
+            linethrough: textStyles.linethrough,
+            layer: 'text',
+            erasable: false,
+        });
+        canvas.add(text);
+        
+        setTextEditingMode('select');
+        canvas.setActiveObject(text);
+        canvas.requestRenderAll();
+        
+        saveHistoryState('text-draw');
+        return;
+    }
+
     if (drawMode && isDown) {
         // Použít spolehlivou referenci na právě vytvořený objekt
         const objToSelect = lastCreatedObject;
@@ -2410,7 +2522,7 @@ document.addEventListener('keydown', (e) => {
         if (activeObj === currentImage) return;
 
         // Pokud je to text v editačním režimu, necháme Fabric.js zpracovat klávesu
-        if (activeObj.type === 'i-text' && activeObj.isEditing) {
+        if ((activeObj.type === 'i-text' || activeObj.type === 'textbox') && activeObj.isEditing) {
             return; // Nemazat objekt, nechat smazat písmeno
         }
 
@@ -2455,14 +2567,27 @@ document.querySelectorAll('.layerTextCheck').forEach(cb => {
 });
 
 // Synchronizace UI s vybraným objektem
-canvas.on('selection:created', syncUIWithSelection);
-canvas.on('selection:updated', syncUIWithSelection);
-canvas.on('selection:cleared', () => {
-    // Při zrušení výběru necháme UI beze změny
-});
+canvas.on('selection:created', handleSelectionChange);
+canvas.on('selection:updated', handleSelectionChange);
+canvas.on('selection:cleared', handleSelectionChange);
 
-function syncUIWithSelection() {
-    const obj = canvas.getActiveObject();
+function handleSelectionChange(e) {
+    const activeObject = canvas.getActiveObject();
+
+    if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
+        // It's a text object, update the text controls
+        updateTextControlsUI(activeObject);
+    } else {
+        // It's a drawing object or selection was cleared
+        if (activeObject) {
+            syncDrawingControls(activeObject);
+        }
+        // When selection is cleared, or it's not a text object, reset text controls
+        resetTextControlsUI();
+    }
+}
+
+function syncDrawingControls(obj) {
     if (!obj || obj === currentImage || obj === cropRect || obj === eraserCursor) return;
 
     // Synchronizace barvy obrysu
@@ -2473,7 +2598,6 @@ function syncUIWithSelection() {
     // Synchronizace barvy výplně
     if (obj.fill === '' || obj.fill === null || obj.fill === 'transparent') {
         document.getElementById('fillTransparent').checked = true;
-        // Neměnit fillColor - nechat předchozí hodnotu
     } else if (obj.fill) {
         document.getElementById('fillColor').value = obj.fill;
         document.getElementById('fillTransparent').checked = false;
@@ -2497,48 +2621,6 @@ function syncUIWithSelection() {
     // Synchronizace zakončení čáry
     if (obj.strokeLineCap) {
         document.getElementById('strokeCap').value = obj.strokeLineCap;
-    }
-
-    // Synchronizace vlastností textu (IText)
-    if (obj.type === 'i-text') {
-        if (obj.fontSize) {
-            document.getElementById('textSize').value = obj.fontSize;
-        }
-        if (obj.fill) {
-            document.getElementById('textColor').value = obj.fill;
-        }
-        if (obj.fontFamily) {
-            document.getElementById('textFont').value = obj.fontFamily;
-            // Aktualizace font pickeru
-            if (typeof setFontPickerValue === 'function') {
-                setFontPickerValue(obj.fontFamily);
-            }
-        }
-        
-        // Synchronizace zarovnání textu
-        const align = obj.textAlign || 'left';
-        document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('bg-pink-200'));
-        const alignBtn = document.getElementById('align' + align.charAt(0).toUpperCase() + align.slice(1));
-        if (alignBtn) alignBtn.classList.add('bg-pink-200');
-        
-        // Synchronizace stylů textu
-        const isBold = obj.fontWeight === 'bold';
-        const isItalic = obj.fontStyle === 'italic';
-        const isUnderline = obj.underline === true;
-        const isLinethrough = obj.linethrough === true;
-        
-        document.getElementById('textBold').classList.toggle('bg-pink-200', isBold);
-        document.getElementById('textItalic').classList.toggle('bg-pink-200', isItalic);
-        document.getElementById('textUnderline').classList.toggle('bg-pink-200', isUnderline);
-        document.getElementById('textLinethrough').classList.toggle('bg-pink-200', isLinethrough);
-        
-        // Aktualizace globálních proměnných stylů
-        if (typeof textStyles !== 'undefined') {
-            textStyles.bold = isBold;
-            textStyles.italic = isItalic;
-            textStyles.underline = isUnderline;
-            textStyles.linethrough = isLinethrough;
-        }
     }
 }
 
@@ -2662,55 +2744,92 @@ function getDashFromUIForWidth(width) {
 }
 //Přidání textu
 document.getElementById('addTextBtn').addEventListener('click', () => {
-    const textValue = document.getElementById('textInput').value.trim();
+    const textValue = document.getElementById('textInput').value.trim() || 'Nový text';
     if (!textValue) return;
-
-    // Získání aktuálního zarovnání
-    let currentAlign = 'left';
-    if (document.getElementById('alignCenter').classList.contains('bg-pink-200')) currentAlign = 'center';
-    if (document.getElementById('alignRight').classList.contains('bg-pink-200')) currentAlign = 'right';
-
-    // Získání aktuálních stylů
-    const isBold = document.getElementById('textBold').classList.contains('bg-pink-200');
-    const isItalic = document.getElementById('textItalic').classList.contains('bg-pink-200');
-    const isUnderline = document.getElementById('textUnderline').classList.contains('bg-pink-200');
-    const isLinethrough = document.getElementById('textLinethrough').classList.contains('bg-pink-200');
 
     const text = new fabric.IText(textValue, {
         left: canvas.width / 2,
         top: canvas.height / 2,
-        originX: 'center',
-        originY: 'center',
-        fill: document.getElementById('textColor').value,
-        fontSize: parseInt(document.getElementById('textSize').value),
-        fontFamily: document.getElementById('textFont').value,
-        textAlign: currentAlign,
-        fontWeight: isBold ? 'bold' : 'normal',
-        fontStyle: isItalic ? 'italic' : 'normal',
-        underline: isUnderline,
-        linethrough: isLinethrough,
+        width: 200, // Default width
+        height: 100, // Default height
+        fontFamily: 'Arial',
+        fill: '#000000',
+        fontSize: 32,
+        layer: 'text',
+        editable: true,
+        textAlign: 'left',
         selectable: true,
-        evented: true,
-        layer: 'text'
+        evented: true
     });
-
     canvas.add(text);
     canvas.setActiveObject(text);
+    iText.enterEditing();
+    iText.hiddenTextarea.focus();
+    drawTextBoxMode = false;
+    canvas.defaultCursor = 'default';
+    // OPRAVA: povol výběr všem objektům
+    canvas.getObjects().forEach(obj => {
+        obj.selectable = true;
+        obj.evented = true;
+    });
     canvas.requestRenderAll();
+    saveHistoryState('add-text');
 });
 // Úprava vlastností textu
 function applyToActiveText(props) {
     const obj = canvas.getActiveObject();
-    if (!obj || obj.type !== 'i-text') return;
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
 
     obj.set(props);
     canvas.requestRenderAll();
+    scheduleTextHistory(); // Uložit do historie
 }
 
+// Synchronizace textových ovladačů s aktivním objektem
+function updateTextControlsUI(obj) {
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) {
+        resetTextControlsUI();
+        return;
+    };
+
+    document.getElementById('textInput').value = obj.text || '';
+    document.getElementById('textSize').value = obj.fontSize;
+    document.getElementById('textColor').value = obj.fill;
+    
+    setFontPickerValue(obj.fontFamily || 'Arial');
+
+    textStyles.bold = obj.fontWeight === 'bold';
+    textStyles.italic = obj.fontStyle === 'italic';
+    textStyles.underline = obj.underline === true;
+    textStyles.linethrough = obj.linethrough === true;
+    updateStyleButtons();
+
+    currentTextAlign = obj.textAlign || 'left';
+    updateAlignButtons();
+}
+
+function resetTextControlsUI() {
+    document.getElementById('textInput').value = '';
+    document.getElementById('textSize').value = 32;
+    document.getElementById('textColor').value = '#000000';
+    setFontPickerValue('Arial');
+
+    textStyles.bold = false;
+    textStyles.italic = false;
+    textStyles.underline = false;
+    textStyles.linethrough = false;
+    updateStyleButtons();
+    
+    currentTextAlign = 'left';
+    updateAlignButtons();
+}
+
+document.getElementById('textInput').addEventListener('input', e => {
+    applyToActiveText({ text: e.target.value });
+});
 document.getElementById('textSize').addEventListener('input', e => {
     applyToActiveText({ fontSize: parseInt(e.target.value) });
 });
-
 document.getElementById('textColor').addEventListener('input', e => {
     applyToActiveText({ fill: e.target.value });
 });
@@ -2718,14 +2837,16 @@ document.getElementById('textColor').addEventListener('input', e => {
 // Zarovnání textu
 let currentTextAlign = 'left';
 
+function updateAlignButtons() {
+    document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('bg-pink-200'));
+    const align = currentTextAlign.charAt(0).toUpperCase() + currentTextAlign.slice(1);
+    const activeBtn = document.getElementById('align' + align);
+    if(activeBtn) activeBtn.classList.add('bg-pink-200');
+}
+
 function setTextAlign(align) {
     currentTextAlign = align;
-    
-    // Aktualizace UI tlačítek
-    document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('bg-pink-200'));
-    document.getElementById('align' + align.charAt(0).toUpperCase() + align.slice(1)).classList.add('bg-pink-200');
-    
-    // Aplikace na aktivní text
+    updateAlignButtons();
     applyToActiveText({ textAlign: align });
 }
 
@@ -2741,37 +2862,38 @@ let textStyles = {
     linethrough: false
 };
 
+function updateStyleButtons() {
+    document.getElementById('textBold').classList.toggle('bg-pink-200', textStyles.bold);
+    document.getElementById('textItalic').classList.toggle('bg-pink-200', textStyles.italic);
+    document.getElementById('textUnderline').classList.toggle('bg-pink-200', textStyles.underline);
+    document.getElementById('textLinethrough').classList.toggle('bg-pink-200', textStyles.linethrough);
+}
+
 function toggleTextStyle(style) {
-    textStyles[style] = !textStyles[style];
+    const activeObject = canvas.getActiveObject();
     
-    const btnMap = {
-        bold: 'textBold',
-        italic: 'textItalic',
-        underline: 'textUnderline',
-        linethrough: 'textLinethrough'
-    };
-    
-    const btn = document.getElementById(btnMap[style]);
-    if (textStyles[style]) {
-        btn.classList.add('bg-pink-200');
-    } else {
-        btn.classList.remove('bg-pink-200');
-    }
-    
-    // Aplikace na aktivní text
-    const obj = canvas.getActiveObject();
-    if (obj && obj.type === 'i-text') {
-        if (style === 'bold') {
-            obj.set('fontWeight', textStyles.bold ? 'bold' : 'normal');
-        } else if (style === 'italic') {
-            obj.set('fontStyle', textStyles.italic ? 'italic' : 'normal');
-        } else if (style === 'underline') {
-            obj.set('underline', textStyles.underline);
-        } else if (style === 'linethrough') {
-            obj.set('linethrough', textStyles.linethrough);
+    let currentState = textStyles[style];
+    if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
+        switch(style) {
+            case 'bold': currentState = activeObject.fontWeight === 'bold'; break;
+            case 'italic': currentState = activeObject.fontStyle === 'italic'; break;
+            case 'underline': currentState = activeObject.underline; break;
+            case 'linethrough': currentState = activeObject.linethrough; break;
         }
-        canvas.requestRenderAll();
     }
+
+    const newState = !currentState;
+    textStyles[style] = newState;
+    
+    updateStyleButtons();
+    
+    const props = {};
+    if (style === 'bold') props.fontWeight = newState ? 'bold' : 'normal';
+    if (style === 'italic') props.fontStyle = newState ? 'italic' : 'normal';
+    if (style === 'underline') props.underline = newState;
+    if (style === 'linethrough') props.linethrough = newState;
+    
+    applyToActiveText(props);
 }
 
 document.getElementById('textBold').addEventListener('click', () => toggleTextStyle('bold'));
@@ -2779,13 +2901,14 @@ document.getElementById('textItalic').addEventListener('click', () => toggleText
 document.getElementById('textUnderline').addEventListener('click', () => toggleTextStyle('underline'));
 document.getElementById('textLinethrough').addEventListener('click', () => toggleTextStyle('linethrough'));
 
+
 // Font Picker Dropdown
 const fontCategories = {
-    'Bezpatkové': ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Open Sans', 'Roboto', 'Lato', 'Montserrat'],
+    'Bezpatkové': ['Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Open Sans', 'Roboto', 'Lato', 'Montserrat'],
     'Patkové': ['Times New Roman', 'Georgia', 'Palatino Linotype', 'Book Antiqua', 'Garamond', 'Playfair Display'],
     'Neproporcionální': ['Courier New', 'Consolas', 'Monaco', 'Lucida Console', 'Source Code Pro'],
-    'Rukopisné': ['Comic Sans MS', 'Brush Script MT', 'Pacifico', 'Dancing Script', 'Caveat'],
-    'Dekorativní': ['Impact', 'Anton', 'Bebas Neue', 'Oswald', 'Lobster']
+    'Rukopisné': ['Comic Sans MS', 'Brush Script MT'],
+    'Dekorativní': ['Impact', 'Oswald', 'Lobster']
 };
 
 const fontPickerBtn = document.getElementById('fontPickerBtn');
@@ -3103,6 +3226,40 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
     // Reset input pro možnost vložit stejný obrázek znovu
     e.target.value = '';
 });
+
+// Listeners for the new text tool buttons
+function setTextEditingMode(mode) {
+    if (mode === 'select') {
+        drawMode = null;
+        canvas.isDrawingMode = false;
+        canvas.selection = true;
+        if(currentImage) lockImage(false);
+        setActiveTool(document.getElementById('textSelectBtn'));
+        canvas.defaultCursor = 'default';
+        // OPRAVA: povol výběr všem objektům
+        canvas.getObjects().forEach(obj => {
+            obj.selectable = true;
+            obj.evented = true;
+        });
+        canvas.requestRenderAll();
+    } else if (mode === 'draw') {
+        drawMode = 'textBox';
+        canvas.isDrawingMode = false;
+        canvas.selection = false;
+        if(currentImage) lockImage(true);
+        setActiveTool(document.getElementById('drawTextBoxBtn'));
+        canvas.defaultCursor = 'crosshair';
+        canvas.getObjects().forEach(o => {
+            o.selectable = false;
+            o.evented = false;
+        });
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+    }
+}
+
+document.getElementById('textSelectBtn').addEventListener('click', () => setTextEditingMode('select'));
+document.getElementById('drawTextBoxBtn').addEventListener('click', () => setTextEditingMode('draw'));
 </script>
 
 </x-layout>
