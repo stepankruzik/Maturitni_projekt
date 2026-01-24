@@ -361,11 +361,19 @@
 
         <!-- Kreslení textového pole -->
         <button id="drawTextBoxBtn" class="tool-btn" title="Nakreslit textové pole">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                <path d="M14 2v6h6"/>
-                <path d="M9 13h6"/>
-                <path d="M9 17h3"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+                <polyline points="4 7 4 4 20 4 20 7"/>
+                <line x1="9" x2="15" y1="20" y2="20"/>
+                <line x1="12" x2="12" y1="4" y2="20"/>
+            </svg>
+        </button>
+        <button id="copyFormatBtn" class="tool-btn" title="Kopírovat formát">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mx-auto">
+                <rect width="16" height="6" x="2" y="12" rx="2"/>
+                <path d="M18 12v-2a4 4 0 0 0-4-4H8"/>
+                <path d="M10 12v6"/>
+                <path d="M6 12v6"/>
+                <path d="M14 12v6"/>
             </svg>
         </button>
     </div>
@@ -688,6 +696,9 @@ let textBox = null;
 let origX, origY;
 let lastCreatedObject = null; // Spolehlivá reference na právě vytvořený objekt
 
+let formatClipboard = null;
+let isFormatPainterActive = false;
+
 // Vizuální kurzor gumy
 let snapIndicator = null;
 let lengthIndicator = null;
@@ -740,6 +751,43 @@ function hideEraserCursor() {
 }
 
 canvas.on('mouse:down', (o) => {
+    if (isFormatPainterActive && o.target) {
+        const target = o.target;
+        if (target && formatClipboard) {
+            // Filter properties that exist on the target
+            const propsToApply = {};
+            for (const key in formatClipboard) {
+                if (target.hasOwnProperty(key) && formatClipboard[key] !== undefined) {
+                    propsToApply[key] = formatClipboard[key];
+                }
+            }
+            target.set(propsToApply);
+
+            // Special handling for text styles to update UI
+            if (target.type === 'i-text' || target.type === 'textbox') {
+                 updateTextControlsUI(target);
+            }
+            // Special handling for shape styles to update UI
+            if (target.layer === 'draw') {
+                syncDrawingControls(target);
+            }
+
+            canvas.requestRenderAll();
+            saveHistoryState('format-paste');
+        }
+        
+        isFormatPainterActive = false;
+        formatClipboard = null;
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+        document.getElementById('copyFormatBtn').classList.remove('bg-green-500', 'text-white');
+        
+        // Zastav zpracování dalšího kreslení
+        o.e.stopPropagation();
+        o.e.preventDefault();
+        return;
+    }
+
     const e = o.e;
     const pointer = canvas.getPointer(e);
 
@@ -1419,16 +1467,13 @@ canvas.on('mouse:up', () => {
         
         let textObjectData;
 
-        // Check if it was a click (small drag)
         if (textBox.width < 10 || textBox.height < 10) {
-            // It's a click, create a textbox with predefined size
             textObjectData = {
                 left: origX,
                 top: origY,
-                width: 200, // Predefined width
+                width: 200, 
             };
         } else {
-            // It's a drag, use the dragged dimensions
             textObjectData = {
                 left: textBox.left,
                 top: textBox.top,
@@ -1436,7 +1481,7 @@ canvas.on('mouse:up', () => {
             };
         }
 
-        canvas.remove(textBox); // remove the temporary rectangle
+        canvas.remove(textBox); 
         textBox = null;
 
         const text = new fabric.Textbox(document.getElementById('textInput').value || 'Text', {
@@ -1455,7 +1500,16 @@ canvas.on('mouse:up', () => {
         canvas.add(text);
         
         setTextEditingMode('select');
+        
+        text.on('editing:entered', () => {
+            if (text.hiddenTextarea) {
+                text.hiddenTextarea.focus();
+            }
+        });
+        
         canvas.setActiveObject(text);
+        text.enterEditing();
+        text.selectAll(); // Select all text
         canvas.requestRenderAll();
         
         saveHistoryState('text-draw');
@@ -2466,7 +2520,6 @@ document.getElementById('lockObjectBtn').addEventListener('click', function() {
         return;
     }
     
-    // Toggle lock stavu
     const isLocked = currentImage.lockMovementX && currentImage.lockMovementY;
     
     currentImage.set({
@@ -2575,14 +2628,11 @@ function handleSelectionChange(e) {
     const activeObject = canvas.getActiveObject();
 
     if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
-        // It's a text object, update the text controls
         updateTextControlsUI(activeObject);
     } else {
-        // It's a drawing object or selection was cleared
         if (activeObject) {
             syncDrawingControls(activeObject);
         }
-        // When selection is cleared, or it's not a text object, reset text controls
         resetTextControlsUI();
     }
 }
@@ -2745,33 +2795,35 @@ function getDashFromUIForWidth(width) {
 //Přidání textu
 document.getElementById('addTextBtn').addEventListener('click', () => {
     const textValue = document.getElementById('textInput').value.trim() || 'Nový text';
-    if (!textValue) return;
-
-    const text = new fabric.IText(textValue, {
+    
+    const text = new fabric.Textbox(textValue, {
         left: canvas.width / 2,
         top: canvas.height / 2,
-        width: 200, // Default width
-        height: 100, // Default height
-        fontFamily: 'Arial',
-        fill: '#000000',
-        fontSize: 32,
+        width: 200,
+        originX: 'center',
+        originY: 'center',
+        fontSize: parseInt(document.getElementById('textSize').value),
+        fill: document.getElementById('textColor').value,
+        fontFamily: document.getElementById('textFont').value,
+        textAlign: currentTextAlign,
+        fontWeight: textStyles.bold ? 'bold' : 'normal',
+        fontStyle: textStyles.italic ? 'italic' : 'normal',
+        underline: textStyles.underline,
+        linethrough: textStyles.linethrough,
         layer: 'text',
-        editable: true,
-        textAlign: 'left',
-        selectable: true,
-        evented: true
+        erasable: false
     });
     canvas.add(text);
-    canvas.setActiveObject(text);
-    iText.enterEditing();
-    iText.hiddenTextarea.focus();
-    drawTextBoxMode = false;
-    canvas.defaultCursor = 'default';
-    // OPRAVA: povol výběr všem objektům
-    canvas.getObjects().forEach(obj => {
-        obj.selectable = true;
-        obj.evented = true;
+
+    text.on('editing:entered', () => {
+        if (text.hiddenTextarea) {
+            text.hiddenTextarea.focus();
+        }
     });
+
+    canvas.setActiveObject(text);
+    text.enterEditing();
+    text.selectAll(); 
     canvas.requestRenderAll();
     saveHistoryState('add-text');
 });
@@ -2780,7 +2832,13 @@ function applyToActiveText(props) {
     const obj = canvas.getActiveObject();
     if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
 
-    obj.set(props);
+    if (obj.selectionStart !== obj.selectionEnd) {
+        obj.setSelectionStyles(props);
+    } else {
+        obj.setSelectionStyles(props);
+    }
+    
+    obj.dirty = true; 
     canvas.requestRenderAll();
     scheduleTextHistory(); // Uložit do historie
 }
@@ -2871,29 +2929,50 @@ function updateStyleButtons() {
 
 function toggleTextStyle(style) {
     const activeObject = canvas.getActiveObject();
-    
-    let currentState = textStyles[style];
-    if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
-        switch(style) {
-            case 'bold': currentState = activeObject.fontWeight === 'bold'; break;
-            case 'italic': currentState = activeObject.fontStyle === 'italic'; break;
-            case 'underline': currentState = activeObject.underline; break;
-            case 'linethrough': currentState = activeObject.linethrough; break;
-        }
+    if (!activeObject || (activeObject.type !== 'i-text' && activeObject.type !== 'textbox')) {
+        textStyles[style] = !textStyles[style];
+        updateStyleButtons();
+        return;
     }
 
-    const newState = !currentState;
-    textStyles[style] = newState;
-    
-    updateStyleButtons();
-    
     const props = {};
-    if (style === 'bold') props.fontWeight = newState ? 'bold' : 'normal';
-    if (style === 'italic') props.fontStyle = newState ? 'italic' : 'normal';
-    if (style === 'underline') props.underline = newState;
-    if (style === 'linethrough') props.linethrough = newState;
-    
+    let propName, styleValue, normalValue;
+
+    switch (style) {
+        case 'bold':
+            propName = 'fontWeight'; styleValue = 'bold'; normalValue = 'normal';
+            break;
+        case 'italic':
+            propName = 'fontStyle'; styleValue = 'italic'; normalValue = 'normal';
+            break;
+        case 'underline':
+            propName = 'underline'; styleValue = true; normalValue = false;
+            break;
+        case 'linethrough':
+            propName = 'linethrough'; styleValue = true; normalValue = false;
+            break;
+    }
+
+    if (activeObject.selectionStart !== activeObject.selectionEnd) {
+        const selectionStyles = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionEnd);
+        const allStyled = selectionStyles.every(s => s[propName] === styleValue);
+        props[propName] = allStyled ? normalValue : styleValue;
+    } else {
+        const cursorStyle = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionStart + 1)[0];
+        const isStyleActive = cursorStyle ? cursorStyle[propName] === styleValue : activeObject[propName] === styleValue;
+        props[propName] = isStyleActive ? normalValue : styleValue;
+    }
+
     applyToActiveText(props);
+
+    setTimeout(() => {
+        const currentStyle = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionStart)[0] || activeObject;
+        textStyles.bold = currentStyle.fontWeight === 'bold';
+        textStyles.italic = currentStyle.fontStyle === 'italic';
+        textStyles.underline = currentStyle.underline === true;
+        textStyles.linethrough = currentStyle.linethrough === true;
+        updateStyleButtons();
+    }, 50);
 }
 
 document.getElementById('textBold').addEventListener('click', () => toggleTextStyle('bold'));
@@ -3038,6 +3117,13 @@ document.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         hideContextMenu();
+        if (isFormatPainterActive) {
+            isFormatPainterActive = false;
+            formatClipboard = null;
+            canvas.defaultCursor = 'default';
+            canvas.hoverCursor = 'move';
+            document.getElementById('copyFormatBtn').classList.remove('bg-green-500', 'text-white');
+        }
     }
 });
 
@@ -3227,7 +3313,7 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
     e.target.value = '';
 });
 
-// Listeners for the new text tool buttons
+// Režimy úpravy textu: výběr vs. kreslení
 function setTextEditingMode(mode) {
     if (mode === 'select') {
         drawMode = null;
@@ -3236,7 +3322,6 @@ function setTextEditingMode(mode) {
         if(currentImage) lockImage(false);
         setActiveTool(document.getElementById('textSelectBtn'));
         canvas.defaultCursor = 'default';
-        // OPRAVA: povol výběr všem objektům
         canvas.getObjects().forEach(obj => {
             obj.selectable = true;
             obj.evented = true;
@@ -3260,6 +3345,50 @@ function setTextEditingMode(mode) {
 
 document.getElementById('textSelectBtn').addEventListener('click', () => setTextEditingMode('select'));
 document.getElementById('drawTextBoxBtn').addEventListener('click', () => setTextEditingMode('draw'));
+
+document.getElementById('copyFormatBtn').addEventListener('click', () => {
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject) return;
+
+    if (isFormatPainterActive) {
+        // Cancel the mode
+        isFormatPainterActive = false;
+        formatClipboard = null;
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+        document.getElementById('copyFormatBtn').classList.remove('bg-green-500', 'text-white');
+        return;
+    }
+
+    formatClipboard = {
+        
+        fill: activeObject.fill,
+        stroke: activeObject.stroke,
+        strokeWidth: activeObject.strokeWidth,
+        strokeDashArray: activeObject.strokeDashArray,
+        strokeLineCap: activeObject.strokeLineCap,
+
+        
+        fontSize: activeObject.fontSize,
+        fontFamily: activeObject.fontFamily,
+        fontWeight: activeObject.fontWeight,
+        fontStyle: activeObject.fontStyle,
+        underline: activeObject.underline,
+        linethrough: activeObject.linethrough,
+        textAlign: activeObject.textAlign,
+        fill: activeObject.fill,
+    };
+    
+    isFormatPainterActive = true;
+    canvas.defaultCursor = 'copy'; 
+    canvas.hoverCursor = 'copy';
+    document.getElementById('copyFormatBtn').classList.add('bg-green-500', 'text-white');
+});
+
+window.addEventListener('beforeunload', function (e) { // alert při opuštění stránky
+  e.preventDefault();
+  e.returnValue = '';
+});
 </script>
 
 </x-layout>
