@@ -495,6 +495,22 @@
 
     <!-- Canvas vpravo -->
     <div class="flex-1 flex justify-center items-center bg-gray-50 relative">
+        <div id="textToolbar" class="hidden fixed bg-white shadow-lg rounded-lg px-2 py-1 flex gap-1 z-50">
+            <button data-style="bold">B</button>
+            <button data-style="italic">I</button>
+            <button data-style="underline">U</button>
+            <button data-style="linethrough">S</button>
+          
+            <span class="mx-1 border-l"></span>
+          
+            <button data-align="left">⬅</button>
+            <button data-align="center">⬌</button>
+            <button data-align="right">➡</button>
+          
+            <input type="color" id="textToolbarColor">
+          
+            <button id="deleteTextBtn">🗑</button>
+        </div>
         <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
         
         <!-- Kontextové menu -->
@@ -691,7 +707,7 @@ let isDown = false;
 let lastPosX, lastPosY;
 
 let drawMode = null; // 'line' | 'circle' | 'angle'
-let line, circle, rect, triangle, rightTriangle, ellipse, star, heart, arrow, speechBubble, roundedSpeechBubble, roundedRect, plusShape, minusShape, crossShape;
+let line, circle, rect, triangle, rightTriangle, ellipse, star, heart, arrow, speechBubble, roundedSpeechBubble, roundedRect, curvedArrow, hexagon, cross;
 let textBox = null;
 let origX, origY;
 let lastCreatedObject = null; // Spolehlivá reference na právě vytvořený objekt
@@ -750,11 +766,73 @@ function hideEraserCursor() {
     }
 }
 
+function lockImage(locked) {
+    if (currentImage) {
+        currentImage.selectable = !locked;
+        currentImage.evented = !locked;
+    }
+}
+
+function setActiveTool(button) {
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-500', 'text-white');
+    });
+    if (button) {
+        button.classList.add('bg-blue-500', 'text-white');
+    }
+}
+
+function setDrawMode(newMode, button) {
+    drawMode = newMode;
+    canvas.isDrawingMode = (newMode === 'brush');
+    
+    if (newMode !== 'eraser') {
+        hideEraserCursor();
+    }
+    
+    if (newMode === 'brush') {
+        canvas.freeDrawingBrush.width = parseInt(document.getElementById('brushWidth').value, 10);
+        canvas.freeDrawingBrush.color = document.getElementById('drawColor').value;
+    } else if (newMode === 'eraser') {
+        ERASER_RADIUS = parseInt(document.getElementById('eraserSize').value, 10);
+        if(eraserCursor) eraserCursor.set('radius', ERASER_RADIUS);
+    }
+
+    if (newMode && newMode !== 'select' && newMode !== 'textSelect') {
+        canvas.selection = false;
+        lockImage(true);
+        canvas.discardActiveObject();
+        canvas.defaultCursor = 'crosshair';
+        canvas.hoverCursor = 'crosshair';
+        canvas.getObjects().forEach(obj => {
+            obj.selectable = false;
+            obj.evented = false;
+        });
+    } else { 
+        canvas.selection = true;
+        lockImage(false);
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+        canvas.getObjects().forEach(obj => {
+            const isBlank = obj._element?.src?.includes('blank_');
+            let canSelect = false;
+            if (newMode === 'select') { 
+                canSelect = !isBlank && (obj.layer === 'draw' || obj.layer === 'image');
+            } else if (newMode === 'textSelect') {
+                canSelect = obj.layer === 'text';
+            }
+            obj.selectable = canSelect;
+            obj.evented = canSelect;
+        });
+    }
+
+    setActiveTool(button);
+}
+
 canvas.on('mouse:down', (o) => {
     if (isFormatPainterActive && o.target) {
         const target = o.target;
         if (target && formatClipboard) {
-            // Filter properties that exist on the target
             const propsToApply = {};
             for (const key in formatClipboard) {
                 if (target.hasOwnProperty(key) && formatClipboard[key] !== undefined) {
@@ -763,11 +841,9 @@ canvas.on('mouse:down', (o) => {
             }
             target.set(propsToApply);
 
-            // Special handling for text styles to update UI
             if (target.type === 'i-text' || target.type === 'textbox') {
                  updateTextControlsUI(target);
             }
-            // Special handling for shape styles to update UI
             if (target.layer === 'draw') {
                 syncDrawingControls(target);
             }
@@ -790,6 +866,13 @@ canvas.on('mouse:down', (o) => {
 
     const e = o.e;
     const pointer = canvas.getPointer(e);
+
+    if (drawMode === 'eraser') {
+        isDown = true;
+        historyBatch = true;
+        eraseAtPoint(pointer);
+        return;
+    }
 
     if (drawMode === 'textBox') {
         isDown = true;
@@ -815,6 +898,8 @@ canvas.on('mouse:down', (o) => {
     if (drawMode) {
         isDown = true;
         historyBatch = true;
+        origX = pointer.x;
+        origY = pointer.y;
 
         const width = parseInt(document.getElementById('brushWidth').value);
         if (drawMode === 'line') {
@@ -833,8 +918,6 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'circle') {
-            origX = pointer.x;
-            origY = pointer.y;
             circle = new fabric.Circle({
                 left: origX,
                 top: origY,
@@ -856,8 +939,6 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'rect') {
-            origX = pointer.x;
-            origY = pointer.y;
             rect = new fabric.Rect({
                 left: origX,
                 top: origY,
@@ -878,304 +959,139 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'triangle') {
-            origX = pointer.x;
-            origY = pointer.y;
             triangle = new fabric.Polygon([
-                { x: 0, y: 0 },
-                { x: 1, y: 1 },
-                { x: -1, y: 1 }
+                { x: 0, y: 0 }, { x: 1, y: 1 }, { x: -1, y: 1 }
             ], {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw',
+                scaleX: 0.1, scaleY: 0.1
             });
             canvas.add(triangle);
             lastCreatedObject = triangle;
         }
 
         if (drawMode === 'rightTriangle') {
-            origX = pointer.x;
-            origY = pointer.y;
-            rightTriangle = new fabric.Polygon([
-                { x: 0, y: 0 },
-                { x: 1, y: 1 },
-                { x: 0, y: 1 }
+             rightTriangle = new fabric.Polygon([
+                { x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }
             ], {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw',
+                scaleX: 0.1, scaleY: 0.1
             });
             canvas.add(rightTriangle);
             lastCreatedObject = rightTriangle;
         }
 
         if (drawMode === 'ellipse') {
-            origX = pointer.x;
-            origY = pointer.y;
             ellipse = new fabric.Ellipse({
-                left: origX,
-                top: origY,
-                rx: 1,
-                ry: 1,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, rx: 1, ry: 1, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(ellipse);
             lastCreatedObject = ellipse;
         }
 
         if (drawMode === 'star') {
-            origX = pointer.x;
-            origY = pointer.y;
-            const points = [];
-            const spikes = 5;
-            for (let i = 0; i < spikes * 2; i++) {
-                const radius = i % 2 === 0 ? 1 : 0.5;
-                const angle = (i * Math.PI) / spikes;
-                points.push({
-                    x: Math.cos(angle) * radius,
-                    y: Math.sin(angle) * radius
-                });
-            }
-            star = new fabric.Polygon(points, {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+            star = new fabric.Polygon([], {
+                left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(star);
             lastCreatedObject = star;
         }
 
         if (drawMode === 'heart') {
-            origX = pointer.x;
-            origY = pointer.y;
-            const path = 'M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 14,5.08C15.09,3.81 16.76,3 18.5,3C21.58,3 24,5.41 24,8.5C24,12.27 18.6,15.36 13.45,20.03L12,21.35Z';
+            const path = 'M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C18.58,3 21,5.41 21,8.5C21,12.27 15.6,15.36 10.45,20.03L9,21.35Z';
             heart = new fabric.Path(path, {
-                left: origX,
-                top: origY,
-                scaleX: 0.1,
-                scaleY: 0.1,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, scaleX: 0.1, scaleY: 0.1, fill: getFillColor(), stroke: getStrokeColor(),
+                strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(heart);
             lastCreatedObject = heart;
         }
 
         if (drawMode === 'arrow') {
-            origX = pointer.x;
-            origY = pointer.y;
             arrow = new fabric.Polygon([
-                { x: 0, y: 5 },
-                { x: 15, y: 5 },
-                { x: 15, y: 0 },
-                { x: 20, y: 7.5 },
-                { x: 15, y: 15 },
-                { x: 15, y: 10 },
-                { x: 0, y: 10 }
+                { x: 0, y: 5 }, { x: 15, y: 5 }, { x: 15, y: 0 }, { x: 20, y: 7.5 }, { x: 15, y: 15 }, { x: 15, y: 10 }, { x: 0, y: 10 }
             ], {
-                left: origX,
-                top: origY,
-                scaleX: 0.1,
-                scaleY: 0.1,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, scaleX: 0.1, scaleY: 0.1, fill: getFillColor(), stroke: getStrokeColor(),
+                strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(arrow);
             lastCreatedObject = arrow;
         }
 
         if (drawMode === 'speechBubble') {
-            origX = pointer.x;
-            origY = pointer.y;
             speechBubble = new fabric.Polygon([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 },
-                { x: 100, y: 70 },
-                { x: 20, y: 70 },
-                { x: 10, y: 90 },
-                { x: 15, y: 70 },
-                { x: 0, y: 70 }
+                { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 70 }, { x: 20, y: 70 }, { x: 10, y: 90 }, { x: 15, y: 70 }, { x: 0, y: 70 }
             ], {
-                left: origX,
-                top: origY,
-                scaleX: 0.1,
-                scaleY: 0.1,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, scaleX: 0.1, scaleY: 0.1, fill: getFillColor(), stroke: getStrokeColor(),
+                strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(speechBubble);
             lastCreatedObject = speechBubble;
         }
 
         if (drawMode === 'roundedSpeechBubble') {
-            origX = pointer.x;
-            origY = pointer.y;
             const path = 'M4,5 C4,3.89543 4.89543,3 6,3 H18 C19.1046,3 20,3.89543 20,5 V15 C20,16.1046 19.1046,17 18,17 H6L4,19V5Z';
             roundedSpeechBubble = new fabric.Path(path, {
-                left: origX,
-                top: origY,
-                scaleX: 0.1,
-                scaleY: 0.1,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, scaleX: 0.1, scaleY: 0.1, fill: getFillColor(), stroke: getStrokeColor(),
+                strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(roundedSpeechBubble);
             lastCreatedObject = roundedSpeechBubble;
         }
 
         if (drawMode === 'roundedRect') {
-            origX = pointer.x;
-            origY = pointer.y;
             roundedRect = new fabric.Rect({
-                left: origX,
-                top: origY,
-                width: 1,
-                height: 1,
-                rx: 10,
-                ry: 10,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, width: 1, height: 1, rx: 10, ry: 10, fill: getFillColor(),
+                stroke: getStrokeColor(), strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width),
+                strokeUniform: true, strokeLineCap: document.getElementById('strokeCap').value,
+                selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(roundedRect);
             lastCreatedObject = roundedRect;
         }
 
         if (drawMode === 'arrowRight') {
-            origX = pointer.x;
-            origY = pointer.y;
             const path = 'M 0,10 Q 10,10 10,0 M 10,0 L 5,5 M 10,0 L 15,5';
-            plusShape = new fabric.Path(path, {
-                left: origX,
-                top: origY,
-                scaleX: 1,
-                scaleY: 1,
-                fill: 'transparent',
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+            curvedArrow = new fabric.Path(path, {
+                left: origX, top: origY, scaleX: 1, scaleY: 1, fill: 'transparent', stroke: getStrokeColor(),
+                strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
-            canvas.add(plusShape);
-            lastCreatedObject = plusShape;
+            canvas.add(curvedArrow);
+            lastCreatedObject = curvedArrow;
         }
 
         if (drawMode === 'hexagon') {
-            origX = pointer.x;
-            origY = pointer.y;
-            const hexPoints = [];
-            for (let i = 0; i < 6; i++) {
-                const angle = (Math.PI / 3) * i - Math.PI / 6;
-                hexPoints.push({
-                    x: Math.cos(angle) * size,
-                    y: Math.sin(angle) * size
-                });
-            }
-            minusShape = new fabric.Polygon(hexPoints, {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: width,
-                strokeDashArray: getDashFromUIForWidth(width),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+            hexagon = new fabric.Polygon([], {
+                left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
+                strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
-            canvas.add(minusShape);
-            lastCreatedObject = minusShape;
+            canvas.add(hexagon);
+            lastCreatedObject = hexagon;
         }
 
         if (drawMode === 'cross') {
-            origX = pointer.x;
-            origY = pointer.y;
             const thinWidth = Math.max(1, width / 3);
-            crossShape = new fabric.Group([
-                new fabric.Line([0, 0, 20, 20], { stroke: getStrokeColor(), strokeWidth: thinWidth }),
-                new fabric.Line([20, 0, 0, 20], { stroke: getStrokeColor(), strokeWidth: thinWidth })
+            cross = new fabric.Group([
+                new fabric.Line([0, 0, 1, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth }),
+                new fabric.Line([1, 0, 0, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth })
             ], {
-                left: origX,
-                top: origY,
-                scaleX: 0.1,
-                scaleY: 0.1,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
+                left: origX, top: origY, scaleX: 1, scaleY: 1, selectable: false, evented: false, layer: 'draw'
             });
-            canvas.add(crossShape);
-            lastCreatedObject = crossShape;
+            canvas.add(cross);
+            lastCreatedObject = cross;
         }
 
         return;
@@ -1211,245 +1127,133 @@ canvas.on('mouse:move', (o) => {
         return;
     }
 
-    // Zobrazení kurzoru gumy
     if (drawMode === 'eraser') {
         showEraserCursor(pointer);
         canvas.defaultCursor = 'none';
         canvas.hoverCursor = 'none';
     }
     
-    // Guma - mazání při tažení
     if (drawMode === 'eraser' && isDown) {
         eraseAtPoint(pointer);
         return;
     }
 
-    //  KRESLENÍ
     if (drawMode && isDown) {
         if (drawMode === 'line') {
             line.set({ x2: pointer.x, y2: pointer.y });
         }
 
         if (drawMode === 'circle') {
-            const radius = Math.max(
-                Math.abs(pointer.x - origX),
-                Math.abs(pointer.y - origY)
-            ) / 2;
-
-            circle.set({
-                radius,
-                left: Math.min(pointer.x, origX),
-                top: Math.min(pointer.y, origY)
-            });
+            const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2));
+            circle.set({ radius });
         }
-
-        if (drawMode === 'rect' && isDown) {
-    const width = pointer.x - origX;
-    const height = pointer.y - origY;
-
-    rect.set({
-        width: Math.abs(width),
-        height: Math.abs(height),
-        left: width < 0 ? pointer.x : origX,
-        top: height < 0 ? pointer.y : origY
-    });
-
-    canvas.requestRenderAll();
-}
-
-        if (drawMode === 'triangle' && isDown) {
+        
+        if (drawMode === 'rect') {
             const width = pointer.x - origX;
             const height = pointer.y - origY;
-            if (triangle) {
-                canvas.remove(triangle);
-            }
-            triangle = new fabric.Polygon([
-                { x: width / 2, y: 0 },
-                { x: width, y: height },
-                { x: 0, y: height }
-            ], {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: parseInt(document.getElementById('brushWidth').value),
-                strokeDashArray: getDashFromUIForWidth(parseInt(document.getElementById('brushWidth').value)),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
-            });
-            canvas.add(triangle);
-            lastCreatedObject = triangle;
-        }
-
-        if (drawMode === 'rightTriangle' && isDown) {
-            const width = pointer.x - origX;
-            const height = pointer.y - origY;
-            if (rightTriangle) {
-                canvas.remove(rightTriangle);
-            }
-            rightTriangle = new fabric.Polygon([
-                { x: 0, y: 0 },
-                { x: width, y: height },
-                { x: 0, y: height }
-            ], {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: parseInt(document.getElementById('brushWidth').value),
-                strokeDashArray: getDashFromUIForWidth(parseInt(document.getElementById('brushWidth').value)),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
-            });
-            canvas.add(rightTriangle);
-            lastCreatedObject = rightTriangle;
-        }
-
-        if (drawMode === 'ellipse' && isDown) {
-            const rx = Math.abs(pointer.x - origX) / 2;
-            const ry = Math.abs(pointer.y - origY) / 2;
-            ellipse.set({
-                rx,
-                ry,
-                left: Math.min(pointer.x, origX),
-                top: Math.min(pointer.y, origY)
-            });
-        }
-
-        if (drawMode === 'star' && isDown) {
-            const width = Math.abs(pointer.x - origX);
-            const height = Math.abs(pointer.y - origY);
-            const size = Math.max(width, height);
-            if (star) {
-                canvas.remove(star);
-            }
-            const points = [];
-            const spikes = 5;
-            for (let i = 0; i < spikes * 2; i++) {
-                const radius = i % 2 === 0 ? size : size / 2;
-                const angle = (i * Math.PI) / spikes - Math.PI / 2;
-                points.push({
-                    x: Math.cos(angle) * radius,
-                    y: Math.sin(angle) * radius
-                });
-            }
-            star = new fabric.Polygon(points, {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: parseInt(document.getElementById('brushWidth').value),
-                strokeDashArray: getDashFromUIForWidth(parseInt(document.getElementById('brushWidth').value)),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
-            });
-            canvas.add(star);
-            lastCreatedObject = star;
-        }
-
-        if (drawMode === 'heart' && isDown) {
-            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 50;
-            heart.set({
-                scaleX: scale,
-                scaleY: scale
-            });
-        }
-
-        if (drawMode === 'arrow' && isDown) {
-            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 20;
-            arrow.set({
-                scaleX: scale,
-                scaleY: scale
-            });
-        }
-
-        if (drawMode === 'speechBubble' && isDown) {
-            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 50;
-            speechBubble.set({
-                scaleX: scale,
-                scaleY: scale
-            });
-        }
-
-        if (drawMode === 'roundedSpeechBubble' && isDown) {
-            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 20;
-            roundedSpeechBubble.set({
-                scaleX: scale,
-                scaleY: scale
-            });
-        }
-
-        if (drawMode === 'roundedRect' && isDown) {
-            const width = pointer.x - origX;
-            const height = pointer.y - origY;
-            roundedRect.set({
-                width: Math.abs(width),
-                height: Math.abs(height),
+            rect.set({
+                width: Math.abs(width), height: Math.abs(height),
                 left: width < 0 ? pointer.x : origX,
                 top: height < 0 ? pointer.y : origY
             });
         }
+        
+        if (drawMode === 'triangle') {
+            const width = pointer.x - origX;
+            const height = pointer.y - origY;
+            triangle.set({
+                points: [ { x: width / 2, y: 0 }, { x: width, y: height }, { x: 0, y: height } ],
+                width: Math.abs(width), height: Math.abs(height),
+                left: origX, top: origY, pathOffset: { x: width/2, y: height/2 }
+            }).setCoords();
+        }
 
-        if (drawMode === 'arrowRight' && isDown) {
-            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 15;
-            plusShape.set({
-                scaleX: scale,
-                scaleY: scale
+        if (drawMode === 'rightTriangle') {
+            const width = pointer.x - origX;
+            const height = pointer.y - origY;
+            rightTriangle.set({
+                points: [ { x: 0, y: 0 }, { x: width, y: height }, { x: 0, y: height } ],
+                width: Math.abs(width), height: Math.abs(height),
+                left: origX, top: origY, pathOffset: { x: width/2, y: height/2 }
+            }).setCoords();
+        }
+
+        if (drawMode === 'ellipse') {
+            const rx = Math.abs(pointer.x - origX) / 2;
+            const ry = Math.abs(pointer.y - origY) / 2;
+            ellipse.set({
+                rx, ry,
+                left: Math.min(pointer.x, origX),
+                top: Math.min(pointer.y, origY)
             });
         }
 
-        if (drawMode === 'hexagon' && isDown) {
+        if (drawMode === 'star') {
             const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY));
-            if (minusShape) {
-                canvas.remove(minusShape);
+            const points = [];
+            const spikes = 5;
+            for (let i = 0; i < spikes * 2; i++) {
+                const radius = i % 2 === 0 ? size / 2 : size / 4;
+                const angle = (i * Math.PI) / spikes - Math.PI / 2;
+                points.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
             }
+            star.set({ points }).setCoords();
+        }
+
+        if (drawMode === 'heart') {
+            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 22;
+            heart.set({ scaleX: scale, scaleY: scale });
+        }
+        
+        if (drawMode === 'arrow') {
+            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 20;
+            arrow.set({ scaleX: scale, scaleY: scale });
+        }
+
+        if (drawMode === 'speechBubble') {
+            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 100;
+            speechBubble.set({ scaleX: scale, scaleY: scale });
+        }
+
+        if (drawMode === 'roundedSpeechBubble') {
+            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 20;
+            roundedSpeechBubble.set({ scaleX: scale, scaleY: scale });
+        }
+
+        if (drawMode === 'roundedRect') {
+            const width = pointer.x - origX;
+            const height = pointer.y - origY;
+            roundedRect.set({
+                width: Math.abs(width), height: Math.abs(height),
+                left: width < 0 ? pointer.x : origX,
+                top: height < 0 ? pointer.y : origY
+            });
+        }
+        
+        if (drawMode === 'arrowRight') {
+            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 15;
+            curvedArrow.set({ scaleX: scale, scaleY: scale });
+        }
+        
+        if (drawMode === 'hexagon') {
+            const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 2;
             const hexPoints = [];
             for (let i = 0; i < 6; i++) {
-                const angle = (Math.PI / 3) * i - Math.PI / 6;
-                hexPoints.push({
-                    x: Math.cos(angle) * size,
-                    y: Math.sin(angle) * size
-                });
+                const angle = (Math.PI / 3) * i;
+                hexPoints.push({ x: Math.cos(angle) * size, y: Math.sin(angle) * size });
             }
-            minusShape = new fabric.Polygon(hexPoints, {
-                left: origX,
-                top: origY,
-                fill: getFillColor(),
-                stroke: getStrokeColor(),
-                strokeWidth: parseInt(document.getElementById('brushWidth').value),
-                strokeDashArray: getDashFromUIForWidth(parseInt(document.getElementById('brushWidth').value)),
-                strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value,
-                selectable: false,
-                evented: false,
-                layer: 'draw'
-            });
-            canvas.add(minusShape);
-            lastCreatedObject = minusShape;
+            hexagon.set({ points: hexPoints }).setCoords();
         }
 
-        if (drawMode === 'cross' && isDown) {
-            const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 20;
-            crossShape.set({
-                scaleX: scale,
-                scaleY: scale
-            });
+        if (drawMode === 'cross') {
+            const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY));
+            cross.set({ scaleX: size, scaleY: size });
         }
 
         canvas.requestRenderAll();
         return;
     }
 
-    //  PAN
     if (isPanning) {
         const vpt = canvas.viewportTransform;
         vpt[4] += e.clientX - lastPosX;
@@ -1517,7 +1321,6 @@ canvas.on('mouse:up', () => {
     }
 
     if (drawMode && isDown) {
-        // Použít spolehlivou referenci na právě vytvořený objekt
         const objToSelect = lastCreatedObject;
         
         if (objToSelect) {
@@ -1526,42 +1329,26 @@ canvas.on('mouse:up', () => {
                 evented: true
             });
             
-            // Automaticky přepnout na kurzor a vybrat objekt
-            canvas.isDrawingMode = false;
-            drawMode = null;
-            canvas.selection = true;
-            lockImage(false);
-            setActiveTool(document.getElementById('drawSelectBtn'));
+            if (objToSelect.type === 'polygon' || objToSelect.type === 'path' || objToSelect.type === 'group') {
+                const center = objToSelect.getCenterPoint();
+                objToSelect.set({
+                    originX: 'center',
+                    originY: 'center',
+                    left: center.x,
+                    top: center.y
+                });
+                objToSelect.setCoords();
+            }
+
+            setDrawMode('select', document.getElementById('drawSelectBtn'));
             
-            canvas.getObjects().forEach(obj => {
-                const isBlank = obj._element?.src?.includes('blank_');
-                obj.selectable = !isBlank;
-                obj.evented = !isBlank;
-            });
-            
-            // Vybrat nakreslený objekt
             setTimeout(() => {
                 canvas.setActiveObject(objToSelect);
                 canvas.requestRenderAll();
-            }, 0);
+            }, 50);
         }
         
-        // Vynulovat všechny reference
-        line = null;
-        circle = null;
-        rect = null;
-        triangle = null;
-        rightTriangle = null;
-        ellipse = null;
-        star = null;
-        heart = null;
-        arrow = null;
-        speechBubble = null;
-        roundedSpeechBubble = null;
-        roundedRect = null;
-        plusShape = null;
-        minusShape = null;
-        crossShape = null;
+        line = circle = rect = triangle = rightTriangle = ellipse = star = heart = arrow = speechBubble = roundedSpeechBubble = roundedRect = curvedArrow = hexagon = cross = null;
         lastCreatedObject = null;
         isDown = false;
         historyBatch = false;
@@ -1569,6 +1356,99 @@ canvas.on('mouse:up', () => {
         canvas.requestRenderAll();
     }
 });
+
+
+document.getElementById('drawSelectBtn').addEventListener('click', () => setDrawMode('select', document.getElementById('drawSelectBtn')));
+document.getElementById('drawLineBtn').addEventListener('click', () => setDrawMode('line', document.getElementById('drawLineBtn')));
+document.getElementById('drawCircleBtn').addEventListener('click', () => setDrawMode('circle', document.getElementById('drawCircleBtn')));
+document.getElementById('drawRectBtn').addEventListener('click', () => setDrawMode('rect', document.getElementById('drawRectBtn')));
+document.getElementById('drawTriangleBtn').addEventListener('click', () => setDrawMode('triangle', document.getElementById('drawTriangleBtn')));
+document.getElementById('drawRightTriangleBtn').addEventListener('click', () => setDrawMode('rightTriangle', document.getElementById('drawRightTriangleBtn')));
+document.getElementById('drawEllipseBtn').addEventListener('click', () => setDrawMode('ellipse', document.getElementById('drawEllipseBtn')));
+document.getElementById('drawStarBtn').addEventListener('click', () => setDrawMode('star', document.getElementById('drawStarBtn')));
+document.getElementById('drawHeartBtn').addEventListener('click', () => setDrawMode('heart', document.getElementById('drawHeartBtn')));
+document.getElementById('drawArrowBtn').addEventListener('click', () => setDrawMode('arrow', document.getElementById('drawArrowBtn')));
+document.getElementById('drawSpeechBubbleBtn').addEventListener('click', () => setDrawMode('speechBubble', document.getElementById('drawSpeechBubbleBtn')));
+document.getElementById('drawRoundedSpeechBubbleBtn').addEventListener('click', () => setDrawMode('roundedSpeechBubble', document.getElementById('drawRoundedSpeechBubbleBtn')));
+document.getElementById('drawRoundedRectBtn').addEventListener('click', () => setDrawMode('roundedRect', document.getElementById('drawRoundedRectBtn')));
+document.getElementById('drawArrowRightBtn').addEventListener('click', () => setDrawMode('arrowRight', document.getElementById('drawArrowRightBtn')));
+document.getElementById('drawHexagonBtn').addEventListener('click', () => setDrawMode('hexagon', document.getElementById('drawHexagonBtn')));
+document.getElementById('drawCrossBtn').addEventListener('click', () => setDrawMode('cross', document.getElementById('drawCrossBtn')));
+document.getElementById('drawBrushBtn').addEventListener('click', () => setDrawMode('brush', document.getElementById('drawBrushBtn')));
+document.getElementById('drawEraserBtn').addEventListener('click', () => {
+    setDrawMode('eraser', document.getElementById('drawEraserBtn'));
+    canvas.defaultCursor = 'none';
+    canvas.hoverCursor = 'none';
+});
+
+// Update brush/eraser settings when changed
+document.getElementById('brushWidth').addEventListener('input', (e) => {
+    if (drawMode === 'brush') {
+        canvas.freeDrawingBrush.width = parseInt(e.target.value, 10);
+    }
+});
+document.getElementById('drawColor').addEventListener('input', (e) => {
+    if (drawMode === 'brush') {
+        canvas.freeDrawingBrush.color = e.target.value;
+    }
+});
+document.getElementById('eraserSize').addEventListener('input', (e) => {
+    if (drawMode === 'eraser') {
+        ERASER_RADIUS = parseInt(e.target.value, 10);
+        if(eraserCursor) eraserCursor.set('radius', ERASER_RADIUS);
+    }
+});
+
+// Úprava stylu čáry
+function applyToActiveObject(props) {
+    const obj = canvas.getActiveObject();
+    if (!obj || !obj.stroke) return;
+
+    if (props.strokeDashArray) {
+        const scale = Math.max(obj.scaleX || 1, obj.scaleY || 1);
+        props.strokeDashArray = props.strokeDashArray.map(v => v / scale);
+    }
+
+    obj.set(props);
+    obj.setCoords();
+    canvas.requestRenderAll();
+}
+
+// Styl čáry
+document.getElementById('strokeStyle').addEventListener('change', e => {
+    const obj = canvas.getActiveObject();
+    if (!obj || !obj.stroke) return;
+
+    const width = obj.strokeWidth || 1;
+
+    obj.set({
+        strokeDashArray: getDashFromUIForWidth(width)
+    });
+
+    canvas.requestRenderAll();
+});
+
+// Zakončení čáry
+document.getElementById('strokeCap').addEventListener('change', e => {
+    applyToActiveObject({
+        strokeLineCap: e.target.value
+    });
+});
+
+function getDashFromUI() {
+    const val = document.getElementById('strokeStyle').value;
+    if (val === 'dotted') return [2, 6];
+    return null;
+}
+
+function getDashFromUIForWidth(width) {
+    const type = document.getElementById('strokeStyle').value;
+
+    if (type === 'dashed') return [width * 2, width];
+    if (type === 'dotted') return [width, width * 1.5];
+    return null;
+}
+
 
 /*
 canvas.on("object:moving", function(e) {
@@ -3306,6 +3186,92 @@ document.getElementById('copyFormatBtn').addEventListener('click', () => {
     canvas.hoverCursor = 'copy';
     document.getElementById('copyFormatBtn').classList.add('bg-green-500', 'text-white');
 });
+
+// TEXT TOOLBAR
+const textToolbar = document.getElementById('textToolbar');
+
+function showTextToolbar(textObj) {
+  const rect = textObj.getBoundingRect(true);
+  const canvasRect = canvas.upperCanvasEl.getBoundingClientRect();
+
+  textToolbar.style.left = canvasRect.left + rect.left + rect.width / 2 - 140 + 'px';
+  textToolbar.style.top  = canvasRect.top + rect.top - 40 + 'px';
+
+  textToolbar.classList.remove('hidden');
+}
+
+function hideTextToolbar() {
+  textToolbar.classList.add('hidden');
+}
+
+canvas.on('selection:created', () => {
+  const obj = canvas.getActiveObject();
+  if (obj && (obj.type === 'i-text' || obj.type === 'textbox')) {
+    showTextToolbar(obj);
+  } else {
+    hideTextToolbar();
+  }
+});
+
+canvas.on('selection:updated', () => {
+  const obj = canvas.getActiveObject();
+  if (obj && (obj.type === 'i-text' || obj.type === 'textbox')) {
+    showTextToolbar(obj);
+  } else {
+    hideTextToolbar();
+  }
+});
+
+canvas.on('selection:cleared', hideTextToolbar);
+
+canvas.on('object:moving', () => {
+  const obj = canvas.getActiveObject();
+  if (obj && (obj.type === 'i-text' || obj.type === 'textbox')) {
+    showTextToolbar(obj);
+  }
+});
+
+document.querySelectorAll('#textToolbar button[data-style]').forEach(btn => {
+  btn.onclick = () => {
+    const obj = canvas.getActiveObject();
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+
+    const style = btn.dataset.style;
+
+    if (style === 'bold') obj.fontWeight = obj.fontWeight === 'bold' ? 'normal' : 'bold';
+    if (style === 'italic') obj.fontStyle = obj.fontStyle === 'italic' ? 'normal' : 'italic';
+    if (style === 'underline') obj.underline = !obj.underline;
+    if (style === 'linethrough') obj.linethrough = !obj.linethrough;
+
+    canvas.requestRenderAll();
+  };
+});
+
+document.querySelectorAll('#textToolbar button[data-align]').forEach(btn => {
+    btn.onclick = () => {
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+
+        obj.textAlign = btn.dataset.align;
+        canvas.requestRenderAll();
+    };
+});
+
+document.getElementById('textToolbarColor').oninput = (e) => {
+    const obj = canvas.getActiveObject();
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+
+    obj.set('fill', e.target.value);
+    canvas.requestRenderAll();
+};
+
+document.getElementById('deleteTextBtn').onclick = () => {
+    const obj = canvas.getActiveObject();
+    if (obj) {
+        canvas.remove(obj);
+        hideTextToolbar();
+    }
+};
 
 window.addEventListener('beforeunload', function (e) { // alert při opuštění stránky
   e.preventDefault();
