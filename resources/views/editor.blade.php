@@ -2743,104 +2743,36 @@ document.getElementById('eraserSize').addEventListener('input', (e) => {
     }
 });
 
-// Úprava stylu čáry 
-function applyToActiveObject(props) {
-    const obj = canvas.getActiveObject();
-    if (!obj || !obj.stroke) return;
-
-    if (props.strokeDashArray) {
-        const scale = Math.max(obj.scaleX || 1, obj.scaleY || 1);
-        props.strokeDashArray = props.strokeDashArray.map(v => v / scale);
-    }
-
-    obj.set(props);
-    obj.setCoords();
-    canvas.requestRenderAll();
-}
-
-// Styl čáry
-document.getElementById('strokeStyle').addEventListener('change', e => {
-    const obj = canvas.getActiveObject();
-    if (!obj || !obj.stroke) return;
-
-    const width = obj.strokeWidth || 1;
-
-    obj.set({
-        strokeDashArray: getDashFromUIForWidth(width)
-    });
-
-    canvas.requestRenderAll();
-});
-
-// Zakončení čáry
-document.getElementById('strokeCap').addEventListener('change', e => {
-    applyToActiveObject({
-        strokeLineCap: e.target.value
-    });
-});
-
-function getDashFromUI() {
-    const val = document.getElementById('strokeStyle').value;
-    if (val === 'dotted') return [2, 6];
-    return null;
-}
-
-function getDashFromUIForWidth(width) {
-    const type = document.getElementById('strokeStyle').value;
-
-    if (type === 'dashed') return [width * 2, width];
-    if (type === 'dotted') return [width, width * 1.5];
-    return null;
-}
-//Přidání textu
-document.getElementById('addTextBtn').addEventListener('click', () => {
-    const textValue = document.getElementById('textInput').value.trim() || 'Nový text';
-    
-    const text = new fabric.Textbox(textValue, {
-        left: canvas.width / 2,
-        top: canvas.height / 2,
-        width: 200,
-        originX: 'center',
-        originY: 'center',
-        fontSize: parseInt(document.getElementById('textSize').value),
-        fill: document.getElementById('textColor').value,
-        fontFamily: document.getElementById('textFont').value,
-        textAlign: currentTextAlign,
-        fontWeight: textStyles.bold ? 'bold' : 'normal',
-        fontStyle: textStyles.italic ? 'italic' : 'normal',
-        underline: textStyles.underline,
-        linethrough: textStyles.linethrough,
-        layer: 'text',
-        erasable: false
-    });
-    canvas.add(text);
-
-    text.on('editing:entered', () => {
-        if (text.hiddenTextarea) {
-            text.hiddenTextarea.focus();
-        }
-    });
-
-    canvas.setActiveObject(text);
-    text.enterEditing();
-    text.selectAll(); 
-    canvas.requestRenderAll();
-    saveHistoryState('add-text');
-});
 // Úprava vlastností textu
 function applyToActiveText(props) {
     const obj = canvas.getActiveObject();
     if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
 
-    if (obj.selectionStart !== obj.selectionEnd) {
-        obj.setSelectionStyles(props);
-    } else {
-        obj.setSelectionStyles(props);
+    // Klíče, které Fabric.js podporuje pro selection styles
+    const selectionKeys = ['fontWeight', 'fontStyle', 'underline', 'linethrough', 'fill', 'fontFamily', 'fontSize'];
+    const selectionProps = {};
+    let hasSelectionProp = false;
+    Object.keys(props).forEach(key => {
+        if (selectionKeys.includes(key)) {
+            selectionProps[key] = props[key];
+            hasSelectionProp = true;
+        }
+    });
+
+    // Pokud je textový objekt v editačním módu a má aktivní výběr, aplikuj styl jen na výběr
+    if ((obj.type === 'i-text' || obj.type === 'textbox') && obj.isEditing && obj.selectionStart !== obj.selectionEnd && hasSelectionProp) {
+        obj.setSelectionStyles(selectionProps, obj.selectionStart, obj.selectionEnd);
+        obj.text = obj.text; // force re-render
+        obj.setCoords();
+        canvas.requestRenderAll();
+        scheduleTextHistory();
+        return;
     }
-    
-    obj.dirty = true; 
+    // Jinak aplikuj na celý textbox
+    obj.set(props);
+    obj.setCoords();
     canvas.requestRenderAll();
-    scheduleTextHistory(); // Uložit do historie
+    scheduleTextHistory();
 }
 
 // Synchronizace textových ovladačů s aktivním objektem
@@ -2848,20 +2780,30 @@ function updateTextControlsUI(obj) {
     if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) {
         resetTextControlsUI();
         return;
-    };
+    }
 
     document.getElementById('textInput').value = obj.text || '';
     document.getElementById('textSize').value = obj.fontSize;
     document.getElementById('textColor').value = obj.fill;
-    
     setFontPickerValue(obj.fontFamily || 'Arial');
 
-    textStyles.bold = obj.fontWeight === 'bold';
-    textStyles.italic = obj.fontStyle === 'italic';
-    textStyles.underline = obj.underline === true;
-    textStyles.linethrough = obj.linethrough === true;
+    // Pokud je textový objekt v editačním módu a má aktivní výběr, načti styl z výběru
+    if ((obj.type === 'i-text' || obj.type === 'textbox') && obj.isEditing && obj.selectionStart !== obj.selectionEnd) {
+        const styles = obj.getSelectionStyles(obj.selectionStart, obj.selectionEnd)[0] || {};
+        textStyles.bold = styles.fontWeight === 'bold';
+        textStyles.italic = styles.fontStyle === 'italic';
+        textStyles.underline = styles.underline === true;
+        textStyles.linethrough = styles.linethrough === true;
+        document.getElementById('textSize').value = styles.fontSize || obj.fontSize;
+        document.getElementById('textColor').value = styles.fill || obj.fill;
+        setFontPickerValue(styles.fontFamily || obj.fontFamily || 'Arial');
+    } else {
+        textStyles.bold = obj.fontWeight === 'bold';
+        textStyles.italic = obj.fontStyle === 'italic';
+        textStyles.underline = obj.underline === true;
+        textStyles.linethrough = obj.linethrough === true;
+    }
     updateStyleButtons();
-
     currentTextAlign = obj.textAlign || 'left';
     updateAlignButtons();
 }
@@ -2929,50 +2871,30 @@ function updateStyleButtons() {
 
 function toggleTextStyle(style) {
     const activeObject = canvas.getActiveObject();
-    if (!activeObject || (activeObject.type !== 'i-text' && activeObject.type !== 'textbox')) {
-        textStyles[style] = !textStyles[style];
-        updateStyleButtons();
-        return;
+    let currentState = textStyles[style];
+    // Pokud je textový objekt v editačním módu a má aktivní výběr, zjisti styl z výběru
+    if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox') && activeObject.isEditing && activeObject.selectionStart !== activeObject.selectionEnd) {
+        const styles = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionEnd)[0] || {};
+        if (style === 'bold') currentState = styles.fontWeight === 'bold';
+        if (style === 'italic') currentState = styles.fontStyle === 'italic';
+        if (style === 'underline') currentState = styles.underline === true;
+        if (style === 'linethrough') currentState = styles.linethrough === true;
+    } else if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
+        if (style === 'bold') currentState = activeObject.fontWeight === 'bold';
+        if (style === 'italic') currentState = activeObject.fontStyle === 'italic';
+        if (style === 'underline') currentState = activeObject.underline === true;
+        if (style === 'linethrough') currentState = activeObject.linethrough === true;
     }
 
+    const newState = !currentState;
+    textStyles[style] = newState;
+    updateStyleButtons();
     const props = {};
-    let propName, styleValue, normalValue;
-
-    switch (style) {
-        case 'bold':
-            propName = 'fontWeight'; styleValue = 'bold'; normalValue = 'normal';
-            break;
-        case 'italic':
-            propName = 'fontStyle'; styleValue = 'italic'; normalValue = 'normal';
-            break;
-        case 'underline':
-            propName = 'underline'; styleValue = true; normalValue = false;
-            break;
-        case 'linethrough':
-            propName = 'linethrough'; styleValue = true; normalValue = false;
-            break;
-    }
-
-    if (activeObject.selectionStart !== activeObject.selectionEnd) {
-        const selectionStyles = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionEnd);
-        const allStyled = selectionStyles.every(s => s[propName] === styleValue);
-        props[propName] = allStyled ? normalValue : styleValue;
-    } else {
-        const cursorStyle = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionStart + 1)[0];
-        const isStyleActive = cursorStyle ? cursorStyle[propName] === styleValue : activeObject[propName] === styleValue;
-        props[propName] = isStyleActive ? normalValue : styleValue;
-    }
-
+    if (style === 'bold') props.fontWeight = newState ? 'bold' : 'normal';
+    if (style === 'italic') props.fontStyle = newState ? 'italic' : 'normal';
+    if (style === 'underline') props.underline = newState;
+    if (style === 'linethrough') props.linethrough = newState;
     applyToActiveText(props);
-
-    setTimeout(() => {
-        const currentStyle = activeObject.getSelectionStyles(activeObject.selectionStart, activeObject.selectionStart)[0] || activeObject;
-        textStyles.bold = currentStyle.fontWeight === 'bold';
-        textStyles.italic = currentStyle.fontStyle === 'italic';
-        textStyles.underline = currentStyle.underline === true;
-        textStyles.linethrough = currentStyle.linethrough === true;
-        updateStyleButtons();
-    }, 50);
 }
 
 document.getElementById('textBold').addEventListener('click', () => toggleTextStyle('bold'));
