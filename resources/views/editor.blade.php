@@ -495,6 +495,10 @@
 
     <!-- Canvas vpravo -->
     <div class="flex-1 flex justify-center items-center bg-gray-50 relative">
+        <!-- HUD pro měření čáry -->
+        <div id="lineHUD" class="hidden fixed bg-gray-900 text-white text-sm px-3 py-1 rounded-lg shadow-lg z-50 pointer-events-none font-mono whitespace-nowrap">
+            <span id="lineHUDText">0 px | 0°</span>
+        </div>
         <div id="textToolbar" class="hidden fixed bg-white shadow-lg rounded-lg px-2 py-1 flex gap-1 z-50">
             <button data-style="bold">B</button>
             <button data-style="italic">I</button>
@@ -721,6 +725,213 @@ let lengthIndicator = null;
 let historyBatch = false;
 let filterHistoryTimer = null;
 
+const SNAP_RADIUS = 12;
+let snapLineIsActive = false;
+let snapCurrentLine = null;
+let lineIsDown = false;
+
+// Pomocná funkce: vypočítá koncové body čáry v canvas souřadnicích
+function getLineEndpointCanvasPos(lineObj, which) {
+    const p = lineObj.calcLinePoints();
+    const matrix = lineObj.calcTransformMatrix();
+    
+    let localX, localY;
+    if (which === 'p1') {
+        localX = p.x1;
+        localY = p.y1;
+    } else {
+        localX = p.x2;
+        localY = p.y2;
+    }
+    
+    const localPoint = new fabric.Point(localX, localY);
+    return fabric.util.transformPoint(localPoint, matrix);
+}
+
+// Pomocná funkce: nastaví koncový bod čáry z canvas souřadnic
+function setLineEndpointFromCanvasPos(lineObj, which, canvasPos) {
+    const otherWhich = which === 'p1' ? 'p2' : 'p1';
+    const otherPos = getLineEndpointCanvasPos(lineObj, otherWhich);
+    
+    let p1, p2;
+    if (which === 'p1') {
+        p1 = canvasPos;
+        p2 = otherPos;
+    } else {
+        p1 = otherPos;
+        p2 = canvasPos;
+    }
+    
+    setLineByCanvasPoints(lineObj, p1, p2);
+}
+
+// Pomocná funkce: nastaví čáru podle dvou canvas bodů
+function setLineByCanvasPoints(lineObj, p1, p2) {
+    const centerX = (p1.x + p2.x) / 2;
+    const centerY = (p1.y + p2.y) / 2;
+    
+    const halfWidth = (p2.x - p1.x) / 2;
+    const halfHeight = (p2.y - p1.y) / 2;
+    
+    lineObj.set({
+        x1: -halfWidth,
+        y1: -halfHeight,
+        x2: halfWidth,
+        y2: halfHeight,
+        left: centerX,
+        top: centerY,
+        originX: 'center',
+        originY: 'center',
+        angle: 0,
+        scaleX: 1,
+        scaleY: 1
+    });
+    
+    lineObj.setCoords();
+}
+
+// Najde nejbližší snap bod (koncový bod existující čáry)
+function findSnapPoint(pointer) {
+    const lines = canvas.getObjects().filter(o => o.type === 'line' && o.layer === 'draw' && o !== snapCurrentLine);
+    let closest = null;
+    let minDist = SNAP_RADIUS;
+    
+    for (const lineObj of lines) {
+        for (const which of ['p1', 'p2']) {
+            const pos = getLineEndpointCanvasPos(lineObj, which);
+            const dist = Math.hypot(pointer.x - pos.x, pointer.y - pos.y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = { x: pos.x, y: pos.y, line: lineObj, which };
+            }
+        }
+    }
+    
+    return closest;
+}
+
+// Zobrazí snap indikátor (zelený kroužek)
+function showSnapIndicator(pos) {
+    if (!snapIndicator) {
+        snapIndicator = new fabric.Circle({
+            radius: 6,
+            fill: 'rgba(34, 197, 94, 0.4)',
+            stroke: '#22c55e',
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+            excludeFromExport: true,
+            originX: 'center',
+            originY: 'center'
+        });
+        canvas.add(snapIndicator);
+    }
+    
+    snapIndicator.set({ left: pos.x, top: pos.y, visible: true });
+    snapIndicator.bringToFront();
+}
+
+// Skryje snap indikátor
+function hideSnapIndicator() {
+    if (snapIndicator) {
+        snapIndicator.visible = false;
+    }
+}
+
+// Zobrazí HUD s délkou a úhlem
+function showLineHUD(p1, p2, mouseEvent) {
+    const hudEl = document.getElementById('lineHUD');
+    const textEl = document.getElementById('lineHUDText');
+    
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.round(Math.hypot(dx, dy));
+    const angleRad = Math.atan2(dy, dx);
+    let angleDeg = Math.round(angleRad * 180 / Math.PI);
+    if (angleDeg < 0) angleDeg += 360;
+    
+    textEl.textContent = `${length} px | ${angleDeg}°`;
+    
+    hudEl.style.left = (mouseEvent.clientX + 15) + 'px';
+    hudEl.style.top = (mouseEvent.clientY + 15) + 'px';
+    hudEl.classList.remove('hidden');
+}
+
+// Skryje HUD
+function hideLineHUD() {
+    document.getElementById('lineHUD').classList.add('hidden');
+}
+
+// Vytvoří vlastní controls pro koncové body čáry
+function enableLineEndpointsControls(lineObj) {
+    lineObj.controls = {};
+    
+    // P1 control
+    lineObj.controls.p1 = new fabric.Control({
+        positionHandler: function(dim, finalMatrix, fabricObject) {
+            const p = fabricObject.calcLinePoints();
+            const point = new fabric.Point(p.x1, p.y1);
+            return fabric.util.transformPoint(point, finalMatrix);
+        },
+        actionHandler: function(eventData, transform, x, y) {
+            const target = transform.target;
+            const newPos = { x, y };
+            setLineEndpointFromCanvasPos(target, 'p1', newPos);
+            return true;
+        },
+        actionName: 'moveP1',
+        cursorStyle: 'crosshair',
+        render: function(ctx, left, top, styleOverride, fabricObject) {
+            ctx.save();
+            ctx.translate(left, top);
+            ctx.beginPath();
+            ctx.arc(0, 0, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#3b82f6';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+    });
+    
+    // P2 control
+    lineObj.controls.p2 = new fabric.Control({
+        positionHandler: function(dim, finalMatrix, fabricObject) {
+            const p = fabricObject.calcLinePoints();
+            const point = new fabric.Point(p.x2, p.y2);
+            return fabric.util.transformPoint(point, finalMatrix);
+        },
+        actionHandler: function(eventData, transform, x, y) {
+            const target = transform.target;
+            const newPos = { x, y };
+            setLineEndpointFromCanvasPos(target, 'p2', newPos);
+            return true;
+        },
+        actionName: 'moveP2',
+        cursorStyle: 'crosshair',
+        render: function(ctx, left, top, styleOverride, fabricObject) {
+            ctx.save();
+            ctx.translate(left, top);
+            ctx.beginPath();
+            ctx.arc(0, 0, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#3b82f6';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+    });
+    
+    // Zakázat standardní transformace
+    lineObj.lockScalingX = true;
+    lineObj.lockScalingY = true;
+    lineObj.lockRotation = true;
+    lineObj.hasRotatingPoint = false;
+    lineObj.hasBorders = false;
+}
+
 function scheduleFilterHistory() {
     clearTimeout(filterHistoryTimer);
     filterHistoryTimer = setTimeout(() => {
@@ -764,6 +975,150 @@ function hideEraserCursor() {
         eraserCursor.visible = false;
         canvas.requestRenderAll();
     }
+}
+
+let snapLineStartPoint = null;
+
+function snapLineMouseDown(e) {
+    if (!snapLineIsActive) return;
+    
+    const pointer = canvas.getPointer(e.e);
+    const snap = findSnapPoint(pointer);
+    
+    snapLineStartPoint = snap ? { x: snap.x, y: snap.y } : { x: pointer.x, y: pointer.y };
+    
+    const width = parseInt(document.getElementById('brushWidth').value);
+    
+    snapCurrentLine = new fabric.Line([0, 0, 0, 0], {
+        stroke: getStrokeColor(),
+        strokeWidth: width,
+        strokeDashArray: getDashFromUIForWidth(width),
+        strokeLineCap: document.getElementById('strokeCap').value,
+        strokeUniform: true,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        layer: 'draw'
+    });
+    
+    setLineByCanvasPoints(snapCurrentLine, snapLineStartPoint, snapLineStartPoint);
+    canvas.add(snapCurrentLine);
+    
+    lineIsDown = true;
+    historyBatch = true;
+}
+
+function snapLineMouseMove(e) {
+    if (!snapLineIsActive) return;
+    
+    const pointer = canvas.getPointer(e.e);
+    const snap = findSnapPoint(pointer);
+    
+    if (snap) {
+        showSnapIndicator(snap);
+    } else {
+        hideSnapIndicator();
+    }
+    
+    if (!lineIsDown || !snapCurrentLine) return;
+    
+    const endPoint = snap ? { x: snap.x, y: snap.y } : { x: pointer.x, y: pointer.y };
+    
+    setLineByCanvasPoints(snapCurrentLine, snapLineStartPoint, endPoint);
+    
+    showLineHUD(snapLineStartPoint, endPoint, e.e);
+    
+    canvas.requestRenderAll();
+}
+
+function snapLineMouseUp(e) {
+    if (!snapLineIsActive || !lineIsDown) return;
+    
+    const pointer = canvas.getPointer(e.e);
+    const snap = findSnapPoint(pointer);
+    const endPoint = snap ? { x: snap.x, y: snap.y } : { x: pointer.x, y: pointer.y };
+    
+    // Zkontroluj zda je čára dostatečně dlouhá
+    const dist = Math.hypot(endPoint.x - snapLineStartPoint.x, endPoint.y - snapLineStartPoint.y);
+    
+    if (dist < 5) {
+        canvas.remove(snapCurrentLine);
+    } else {
+        setLineByCanvasPoints(snapCurrentLine, snapLineStartPoint, endPoint);
+        
+        // Během aktivního nástroje nechej čáru nevybíratelnou
+        // (aby šlo kreslit další čáry a napojovat se)
+        snapCurrentLine.set({
+            selectable: false,
+            evented: false
+        });
+        
+        enableLineEndpointsControls(snapCurrentLine);
+    }
+    
+    hideSnapIndicator();
+    hideLineHUD();
+    
+    lineIsDown = false;
+    historyBatch = false;
+    snapCurrentLine = null;
+    snapLineStartPoint = null;
+    
+    saveHistoryState('draw-line');
+    canvas.requestRenderAll();
+}
+
+function activateSnapLineTool() {
+    // Deaktivuj jiné režimy
+    deactivateSnapLineTool();
+    
+    snapLineIsActive = true;
+    drawMode = null;
+    canvas.isDrawingMode = false;
+    canvas.selection = false;
+    
+    lockImage(true);
+    
+    canvas.defaultCursor = 'crosshair';
+    canvas.hoverCursor = 'crosshair';
+    
+    // Zakázat výběr objektů během kreslení
+    canvas.getObjects().forEach(obj => {
+        if (obj !== snapIndicator) {
+            obj.selectable = false;
+            obj.evented = false;
+        }
+    });
+    
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+}
+
+function deactivateSnapLineTool() {
+    if (!snapLineIsActive) return;
+    
+    snapLineIsActive = false;
+    
+    hideSnapIndicator();
+    hideLineHUD();
+    
+    if (snapCurrentLine && lineIsDown) {
+        canvas.remove(snapCurrentLine);
+    }
+    
+    // Obnov vybíratelnost všech čar
+    canvas.getObjects().forEach(obj => {
+        if (obj.type === 'line' && obj.layer === 'draw') {
+            obj.selectable = true;
+            obj.evented = true;
+        }
+    });
+    
+    snapCurrentLine = null;
+    snapLineStartPoint = null;
+    lineIsDown = false;
+    historyBatch = false;
 }
 
 function lockImage(locked) {
@@ -867,6 +1222,12 @@ canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
 
+    // Snap Line Tool handling
+    if (snapLineIsActive) {
+        snapLineMouseDown(o);
+        return;
+    }
+
     if (drawMode === 'eraser') {
         isDown = true;
         historyBatch = true;
@@ -902,20 +1263,6 @@ canvas.on('mouse:down', (o) => {
         origY = pointer.y;
 
         const width = parseInt(document.getElementById('brushWidth').value);
-        if (drawMode === 'line') {
-            line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
-                 stroke: getStrokeColor(),
-                 strokeWidth: width,
-                 strokeDashArray: getDashFromUIForWidth(width),
-                 strokeLineCap: document.getElementById('strokeCap').value,
-                 strokeUniform: true,
-                 selectable: false,
-                 evented: false,
-                 layer: 'draw'
-            });
-            canvas.add(line);
-            lastCreatedObject = line;
-        }
 
         if (drawMode === 'circle') {
             circle = new fabric.Circle({
@@ -960,12 +1307,11 @@ canvas.on('mouse:down', (o) => {
 
         if (drawMode === 'triangle') {
             triangle = new fabric.Polygon([
-                { x: 0, y: 0 }, { x: 1, y: 1 }, { x: -1, y: 1 }
+                { x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }
             ], {
                 left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
                 strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw',
-                scaleX: 0.1, scaleY: 0.1
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(triangle);
             lastCreatedObject = triangle;
@@ -977,8 +1323,7 @@ canvas.on('mouse:down', (o) => {
             ], {
                 left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
                 strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw',
-                scaleX: 0.1, scaleY: 0.1
+                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
             });
             canvas.add(rightTriangle);
             lastCreatedObject = rightTriangle;
@@ -1083,12 +1428,12 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'cross') {
-            const thinWidth = Math.max(1, width / 3);
             cross = new fabric.Group([
-                new fabric.Line([0, 0, 1, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth }),
-                new fabric.Line([1, 0, 0, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth })
+                new fabric.Line([0, 0, 1, 1], { stroke: getStrokeColor(), strokeWidth: width, strokeLineCap: 'round' }),
+                new fabric.Line([1, 0, 0, 1], { stroke: getStrokeColor(), strokeWidth: width, strokeLineCap: 'round' })
             ], {
-                left: origX, top: origY, scaleX: 1, scaleY: 1, selectable: false, evented: false, layer: 'draw'
+                left: origX, top: origY, scaleX: 1, scaleY: 1, selectable: false, evented: false, layer: 'draw',
+                strokeUniform: true
             });
             canvas.add(cross);
             lastCreatedObject = cross;
@@ -1112,6 +1457,12 @@ canvas.on('path:created', function (e) {
 canvas.on('mouse:move', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
+
+    // Snap Line Tool handling
+    if (snapLineIsActive) {
+        snapLineMouseMove(o);
+        return;
+    }
     
     if (drawMode === 'textBox' && isDown) {
         const width = pointer.x - origX;
@@ -1139,10 +1490,6 @@ canvas.on('mouse:move', (o) => {
     }
 
     if (drawMode && isDown) {
-        if (drawMode === 'line') {
-            line.set({ x2: pointer.x, y2: pointer.y });
-        }
-
         if (drawMode === 'circle') {
             const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2));
             circle.set({ radius });
@@ -1159,23 +1506,35 @@ canvas.on('mouse:move', (o) => {
         }
         
         if (drawMode === 'triangle') {
-            const width = pointer.x - origX;
-            const height = pointer.y - origY;
+            const w = pointer.x - origX;
+            const h = pointer.y - origY;
+            const absW = Math.abs(w);
+            const absH = Math.abs(h);
+            const left = w < 0 ? pointer.x : origX;
+            const top = h < 0 ? pointer.y : origY;
             triangle.set({
-                points: [ { x: width / 2, y: 0 }, { x: width, y: height }, { x: 0, y: height } ],
-                width: Math.abs(width), height: Math.abs(height),
-                left: origX, top: origY, pathOffset: { x: width/2, y: height/2 }
-            }).setCoords();
+                points: [ { x: absW / 2, y: 0 }, { x: absW, y: absH }, { x: 0, y: absH } ],
+                left: left,
+                top: top
+            });
+            triangle._setPositionDimensions({});
+            triangle.setCoords();
         }
 
         if (drawMode === 'rightTriangle') {
-            const width = pointer.x - origX;
-            const height = pointer.y - origY;
+            const w = pointer.x - origX;
+            const h = pointer.y - origY;
+            const absW = Math.abs(w);
+            const absH = Math.abs(h);
+            const left = w < 0 ? pointer.x : origX;
+            const top = h < 0 ? pointer.y : origY;
             rightTriangle.set({
-                points: [ { x: 0, y: 0 }, { x: width, y: height }, { x: 0, y: height } ],
-                width: Math.abs(width), height: Math.abs(height),
-                left: origX, top: origY, pathOffset: { x: width/2, y: height/2 }
-            }).setCoords();
+                points: [ { x: 0, y: 0 }, { x: absW, y: absH }, { x: 0, y: absH } ],
+                left: left,
+                top: top
+            });
+            rightTriangle._setPositionDimensions({});
+            rightTriangle.setCoords();
         }
 
         if (drawMode === 'ellipse') {
@@ -1192,12 +1551,16 @@ canvas.on('mouse:move', (o) => {
             const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY));
             const points = [];
             const spikes = 5;
+            const centerX = size / 2;
+            const centerY = size / 2;
             for (let i = 0; i < spikes * 2; i++) {
                 const radius = i % 2 === 0 ? size / 2 : size / 4;
                 const angle = (i * Math.PI) / spikes - Math.PI / 2;
-                points.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+                points.push({ x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius });
             }
-            star.set({ points }).setCoords();
+            star.set({ points });
+            star._setPositionDimensions({});
+            star.setCoords();
         }
 
         if (drawMode === 'heart') {
@@ -1238,16 +1601,25 @@ canvas.on('mouse:move', (o) => {
         if (drawMode === 'hexagon') {
             const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 2;
             const hexPoints = [];
+            const centerX = size;
+            const centerY = size;
             for (let i = 0; i < 6; i++) {
-                const angle = (Math.PI / 3) * i;
-                hexPoints.push({ x: Math.cos(angle) * size, y: Math.sin(angle) * size });
+                const angle = (Math.PI / 3) * i - Math.PI / 6;
+                hexPoints.push({ x: centerX + Math.cos(angle) * size, y: centerY + Math.sin(angle) * size });
             }
-            hexagon.set({ points: hexPoints }).setCoords();
+            hexagon.set({ points: hexPoints });
+            hexagon._setPositionDimensions({});
+            hexagon.setCoords();
         }
 
         if (drawMode === 'cross') {
-            const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY));
-            cross.set({ scaleX: size, scaleY: size });
+            const w = Math.abs(pointer.x - origX);
+            const h = Math.abs(pointer.y - origY);
+            const size = Math.max(w, h);
+            if (size > 1) {
+                cross.set({ scaleX: size, scaleY: size });
+                cross.setCoords();
+            }
         }
 
         canvas.requestRenderAll();
@@ -1265,7 +1637,13 @@ canvas.on('mouse:move', (o) => {
     }
 });
 
-canvas.on('mouse:up', () => {
+canvas.on('mouse:up', (o) => {
+    // Snap Line Tool handling
+    if (snapLineIsActive) {
+        snapLineMouseUp(o);
+        return;
+    }
+
     if (drawMode === 'textBox' && isDown) {
         isDown = false;
         
@@ -1358,24 +1736,76 @@ canvas.on('mouse:up', () => {
 });
 
 
-document.getElementById('drawSelectBtn').addEventListener('click', () => setDrawMode('select', document.getElementById('drawSelectBtn')));
-document.getElementById('drawLineBtn').addEventListener('click', () => setDrawMode('line', document.getElementById('drawLineBtn')));
-document.getElementById('drawCircleBtn').addEventListener('click', () => setDrawMode('circle', document.getElementById('drawCircleBtn')));
-document.getElementById('drawRectBtn').addEventListener('click', () => setDrawMode('rect', document.getElementById('drawRectBtn')));
-document.getElementById('drawTriangleBtn').addEventListener('click', () => setDrawMode('triangle', document.getElementById('drawTriangleBtn')));
-document.getElementById('drawRightTriangleBtn').addEventListener('click', () => setDrawMode('rightTriangle', document.getElementById('drawRightTriangleBtn')));
-document.getElementById('drawEllipseBtn').addEventListener('click', () => setDrawMode('ellipse', document.getElementById('drawEllipseBtn')));
-document.getElementById('drawStarBtn').addEventListener('click', () => setDrawMode('star', document.getElementById('drawStarBtn')));
-document.getElementById('drawHeartBtn').addEventListener('click', () => setDrawMode('heart', document.getElementById('drawHeartBtn')));
-document.getElementById('drawArrowBtn').addEventListener('click', () => setDrawMode('arrow', document.getElementById('drawArrowBtn')));
-document.getElementById('drawSpeechBubbleBtn').addEventListener('click', () => setDrawMode('speechBubble', document.getElementById('drawSpeechBubbleBtn')));
-document.getElementById('drawRoundedSpeechBubbleBtn').addEventListener('click', () => setDrawMode('roundedSpeechBubble', document.getElementById('drawRoundedSpeechBubbleBtn')));
-document.getElementById('drawRoundedRectBtn').addEventListener('click', () => setDrawMode('roundedRect', document.getElementById('drawRoundedRectBtn')));
-document.getElementById('drawArrowRightBtn').addEventListener('click', () => setDrawMode('arrowRight', document.getElementById('drawArrowRightBtn')));
-document.getElementById('drawHexagonBtn').addEventListener('click', () => setDrawMode('hexagon', document.getElementById('drawHexagonBtn')));
-document.getElementById('drawCrossBtn').addEventListener('click', () => setDrawMode('cross', document.getElementById('drawCrossBtn')));
-document.getElementById('drawBrushBtn').addEventListener('click', () => setDrawMode('brush', document.getElementById('drawBrushBtn')));
+document.getElementById('drawSelectBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('select', document.getElementById('drawSelectBtn'));
+});
+document.getElementById('drawLineBtn').addEventListener('click', () => {
+    activateSnapLineTool();
+    setActiveTool(document.getElementById('drawLineBtn'));
+});
+document.getElementById('drawCircleBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('circle', document.getElementById('drawCircleBtn'));
+});
+document.getElementById('drawRectBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('rect', document.getElementById('drawRectBtn'));
+});
+document.getElementById('drawTriangleBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('triangle', document.getElementById('drawTriangleBtn'));
+});
+document.getElementById('drawRightTriangleBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('rightTriangle', document.getElementById('drawRightTriangleBtn'));
+});
+document.getElementById('drawEllipseBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('ellipse', document.getElementById('drawEllipseBtn'));
+});
+document.getElementById('drawStarBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('star', document.getElementById('drawStarBtn'));
+});
+document.getElementById('drawHeartBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('heart', document.getElementById('drawHeartBtn'));
+});
+document.getElementById('drawArrowBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('arrow', document.getElementById('drawArrowBtn'));
+});
+document.getElementById('drawSpeechBubbleBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('speechBubble', document.getElementById('drawSpeechBubbleBtn'));
+});
+document.getElementById('drawRoundedSpeechBubbleBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('roundedSpeechBubble', document.getElementById('drawRoundedSpeechBubbleBtn'));
+});
+document.getElementById('drawRoundedRectBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('roundedRect', document.getElementById('drawRoundedRectBtn'));
+});
+document.getElementById('drawArrowRightBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('arrowRight', document.getElementById('drawArrowRightBtn'));
+});
+document.getElementById('drawHexagonBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('hexagon', document.getElementById('drawHexagonBtn'));
+});
+document.getElementById('drawCrossBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('cross', document.getElementById('drawCrossBtn'));
+});
+document.getElementById('drawBrushBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
+    setDrawMode('brush', document.getElementById('drawBrushBtn'));
+});
 document.getElementById('drawEraserBtn').addEventListener('click', () => {
+    deactivateSnapLineTool();
     setDrawMode('eraser', document.getElementById('drawEraserBtn'));
     canvas.defaultCursor = 'none';
     canvas.hoverCursor = 'none';
@@ -1563,7 +1993,6 @@ if (isBlank && rulerEnabled) {
 
         fitImageToCanvas(img);
         fitObjectToViewport(img);
-        // saveHistoryState('init'); // Zrušeno: neukládat stav hned po načtení obrázku
         updateImageSize();
     }, { crossOrigin: 'anonymous' });
 }
@@ -1932,7 +2361,6 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     exportCanvas.height = Math.ceil(bbox.height);
     const exportCtx = exportCanvas.getContext('2d');
 
-    //  posun světa tak, aby levý horní roh bbox byl (0,0)
     exportCtx.save();
     exportCtx.translate(-bbox.left, -bbox.top);
 
@@ -1989,6 +2417,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         // vypnout kreslení
         drawMode = null;
         isDown = false;
+        
+        // Deaktivovat snap-line nástroj
+        deactivateSnapLineTool();
         
         // Skrýt kurzor gumy
         hideEraserCursor();
@@ -2069,8 +2500,8 @@ function enableDrawing(mode) {
 }
 
 document.getElementById('drawLineBtn').addEventListener('click', function() {
+    activateSnapLineTool();
     setActiveTool(this);
-    enableDrawing('line');
     lockImage(true);
 });
 document.getElementById('drawCircleBtn').addEventListener('click', function() {
@@ -2145,6 +2576,7 @@ document.getElementById('drawCrossBtn').addEventListener('click', function() {
     lockImage(true);
 });
 document.getElementById('drawSelectBtn').onclick = () => {
+    deactivateSnapLineTool();
     canvas.isDrawingMode = false;
     drawMode = null;
     canvas.selection = true;
@@ -2161,6 +2593,7 @@ document.getElementById('drawSelectBtn').onclick = () => {
     canvas.requestRenderAll();
 };
 document.getElementById('drawBrushBtn').addEventListener('click', function () {
+    deactivateSnapLineTool();
     setActiveTool(this);
 
     drawMode = null;
@@ -3080,6 +3513,17 @@ canvas.on('object:removed', (e) => {
 canvas.on('object:modified', (e) => {
   if (HISTORY.isRestoring) return;
   if (!isHistoryObject(e.target)) return;
+  
+  // Po přesunutí čáry resetuj její transformace aby zůstala stabilní
+  const obj = e.target;
+  if (obj && obj.type === 'line' && obj.layer === 'draw') {
+    // Získej aktuální koncové body v canvas souřadnicích
+    const p1 = getLineEndpointCanvasPos(obj, 'p1');
+    const p2 = getLineEndpointCanvasPos(obj, 'p2');
+    // Nastav čáru znovu s resetovanými transformacemi
+    setLineByCanvasPoints(obj, p1, p2);
+  }
+  
   saveHistoryState('modified');
 });
 
