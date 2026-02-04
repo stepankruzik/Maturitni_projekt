@@ -499,6 +499,29 @@
         <div id="lineHUD" class="hidden fixed bg-gray-900 text-white text-sm px-3 py-1 rounded-lg shadow-lg z-50 pointer-events-none font-mono whitespace-nowrap">
             <span id="lineHUDText">0 px | 0°</span>
         </div>
+        <!-- Plovoucí toolbar pro kreslení -->
+        <div id="drawFloatingToolbar" class="hidden fixed bg-white border rounded-lg shadow-lg px-2 py-2 z-50 flex gap-2 items-center">
+            <label class="text-xs">Stroke</label>
+            <input id="drawFloatingStrokeColor" type="color" class="h-6 w-8 p-0">
+            <label class="text-xs">Fill</label>
+            <input id="drawFloatingFillColor" type="color" class="h-6 w-8 p-0">
+            <label class="text-xs">Width</label>
+            <input id="drawFloatingStrokeWidth" type="number" min="1" max="100" value="3" class="w-12 text-xs">
+            <label class="text-xs">Style</label>
+            <select id="drawFloatingStrokeStyle" class="text-xs">
+                <option value="solid">Plná</option>
+                <option value="dashed">Čárkovaná</option>
+                <option value="dotted">Tečkovaná</option>
+            </select>
+            <label class="text-xs">Cap</label>
+            <select id="drawFloatingStrokeCap" class="text-xs">
+                <option value="butt">Butt</option>
+                <option value="round">Round</option>
+                <option value="square">Square</option>
+            </select>
+            <label class="text-xs">Transparent</label>
+            <input id="drawFloatingTransparent" type="checkbox">
+        </div>
         <div id="textToolbar" class="hidden fixed bg-white shadow-lg rounded-lg px-2 py-1 flex gap-1 z-50">
             <button data-style="bold">B</button>
             <button data-style="italic">I</button>
@@ -514,6 +537,33 @@
             <input type="color" id="textToolbarColor">
           
             <button id="deleteTextBtn">🗑</button>
+        </div>
+        <!-- Kontekstové menu pro text -->
+        <div id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+            <div class="p-2 border-b grid grid-cols-3 gap-1">
+                <button id="ctxBold" class="px-2 py-1 text-sm">B</button>
+                <button id="ctxItalic" class="px-2 py-1 text-sm">I</button>
+                <button id="ctxUnderline" class="px-2 py-1 text-sm">U</button>
+            </div>
+            <div class="p-2 border-b flex items-center gap-2">
+                <label class="text-xs">Barva:</label>
+                <input id="ctxColor" type="color" class="h-6 w-8 p-0">
+            </div>
+            <div class="p-2 border-b flex items-center justify-between">
+                <div class="flex gap-1">
+                    <button id="ctxAlignLeft" class="px-2 py-1 text-sm">⬅</button>
+                    <button id="ctxAlignCenter" class="px-2 py-1 text-sm">⬌</button>
+                    <button id="ctxAlignRight" class="px-2 py-1 text-sm">➡</button>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button id="ctxSizeMinus" class="px-2 py-1 text-sm">-</button>
+                    <span id="ctxSizeVal" class="text-xs">32</span>
+                    <button id="ctxSizePlus" class="px-2 py-1 text-sm">+</button>
+                </div>
+            </div>
+            <div class="p-2">
+                <button id="ctxDeleteText" class="w-full text-left text-red-600 px-2 py-1">Smazat text</button>
+            </div>
         </div>
         <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
         
@@ -1093,6 +1143,7 @@ function activateSnapLineTool() {
     
     canvas.discardActiveObject();
     canvas.requestRenderAll();
+    updateDrawFloatingToolbarVisibility();
 }
 
 function deactivateSnapLineTool() {
@@ -1119,6 +1170,7 @@ function deactivateSnapLineTool() {
     snapLineStartPoint = null;
     lineIsDown = false;
     historyBatch = false;
+    updateDrawFloatingToolbarVisibility();
 }
 
 function lockImage(locked) {
@@ -1182,7 +1234,64 @@ function setDrawMode(newMode, button) {
     }
 
     setActiveTool(button);
+    updateDrawFloatingToolbarVisibility();
 }
+
+// Aktualizace viditelnosti a hodnot plovoucího toolbaru
+function updateDrawFloatingToolbarVisibility() {
+    const el = document.getElementById('drawFloatingToolbar');
+    if (!el) return;
+    const shouldShow = drawMode !== null || canvas.isDrawingMode === true;
+    if (shouldShow) {
+        const rect = canvas.upperCanvasEl.getBoundingClientRect();
+        el.style.left = (rect.left + 12) + 'px';
+        el.style.top = (rect.top + 12) + 'px';
+        el.classList.remove('hidden');
+
+        // fill controls with current defaults or active object
+        const strokeColor = document.getElementById('drawColor')?.value || '#000000';
+        const fillColor = document.getElementById('fillColor')?.value || 'transparent';
+        document.getElementById('drawFloatingStrokeColor').value = strokeColor;
+        document.getElementById('drawFloatingFillColor').value = fillColor === 'transparent' ? '#ffffff' : fillColor;
+        document.getElementById('drawFloatingStrokeWidth').value = document.getElementById('brushWidth')?.value || 3;
+        document.getElementById('drawFloatingStrokeStyle').value = document.getElementById('strokeStyle')?.value || 'solid';
+        document.getElementById('drawFloatingStrokeCap').value = document.getElementById('strokeCap')?.value || 'butt';
+        document.getElementById('drawFloatingTransparent').checked = (fillColor === 'transparent');
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
+// Hook toolbar inputs
+document.addEventListener('DOMContentLoaded', () => {
+    const sc = document.getElementById('drawFloatingStrokeColor');
+    if (sc) sc.addEventListener('input', (e) => {
+        const v = e.target.value;
+        const drawColorEl = document.getElementById('drawColor');
+        if (drawColorEl) drawColorEl.value = v;
+        if (canvas.freeDrawingBrush) canvas.freeDrawingBrush.color = v;
+    });
+
+    const fw = document.getElementById('drawFloatingStrokeWidth');
+    if (fw) fw.addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10) || 1;
+        const brushWidthEl = document.getElementById('brushWidth');
+        if (brushWidthEl) brushWidthEl.value = v;
+        if (canvas.freeDrawingBrush) canvas.freeDrawingBrush.width = v;
+    });
+
+    const styleEl = document.getElementById('drawFloatingStrokeStyle');
+    if (styleEl) styleEl.addEventListener('change', (e) => {
+        const v = e.target.value;
+        document.getElementById('strokeStyle').value = v;
+    });
+
+    const capEl = document.getElementById('drawFloatingStrokeCap');
+    if (capEl) capEl.addEventListener('change', (e) => {
+        const v = e.target.value;
+        document.getElementById('strokeCap').value = v;
+    });
+});
 
 canvas.on('mouse:down', (o) => {
     if (isFormatPainterActive && o.target) {
@@ -1352,9 +1461,20 @@ canvas.on('mouse:down', (o) => {
         if (drawMode === 'heart') {
             const path = 'M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C18.58,3 21,5.41 21,8.5C21,12.27 15.6,15.36 10.45,20.03L9,21.35Z';
             heart = new fabric.Path(path, {
-                left: origX, top: origY, scaleX: 0.1, scaleY: 0.1, fill: getFillColor(), stroke: getStrokeColor(),
-                strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
-                strokeLineCap: document.getElementById('strokeCap').value, selectable: false, evented: false, layer: 'draw'
+                left: origX,
+                top: origY,
+                originX: 'center',
+                originY: 'center',
+                fill: getFillColor(),
+                stroke: getStrokeColor(),
+                strokeWidth: width,
+                strokeUniform: true,
+                objectCaching: false,
+                fillRule: 'nonzero',
+                strokeLineCap: document.getElementById('strokeCap').value,
+                selectable: false,
+                evented: false,
+                layer: 'draw'
             });
             canvas.add(heart);
             lastCreatedObject = heart;
@@ -1428,9 +1548,10 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'cross') {
+            const thinWidth = Math.max(1, width * 0.15);
             cross = new fabric.Group([
-                new fabric.Line([0, 0, 1, 1], { stroke: getStrokeColor(), strokeWidth: width, strokeLineCap: 'round' }),
-                new fabric.Line([1, 0, 0, 1], { stroke: getStrokeColor(), strokeWidth: width, strokeLineCap: 'round' })
+                new fabric.Line([0, 0, 1, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' }),
+                new fabric.Line([1, 0, 0, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' })
             ], {
                 left: origX, top: origY, scaleX: 1, scaleY: 1, selectable: false, evented: false, layer: 'draw',
                 strokeUniform: true
@@ -1687,6 +1808,12 @@ canvas.on('mouse:up', (o) => {
             if (text.hiddenTextarea) {
                 text.hiddenTextarea.focus();
             }
+            // synchronizuj UI při pohybu kurzoru nebo změně výběru
+            text.on('selection:changed', () => syncTextToolbarFromObject(text));
+        });
+
+        text.on('editing:exited', () => {
+            hideTextToolbar();
         });
         
         canvas.setActiveObject(text);
@@ -3141,10 +3268,12 @@ document.getElementById('textInput').addEventListener('input', e => {
     applyToActiveText({ text: e.target.value });
 });
 document.getElementById('textSize').addEventListener('input', e => {
-    applyToActiveText({ fontSize: parseInt(e.target.value) });
+    const obj = canvas.getActiveObject();
+    if (obj) applyStyleToSelectionOrAll(obj, { fontSize: parseInt(e.target.value) });
 });
 document.getElementById('textColor').addEventListener('input', e => {
-    applyToActiveText({ fill: e.target.value });
+    const obj = canvas.getActiveObject();
+    if (obj) applyStyleToSelectionOrAll(obj, { fill: e.target.value });
 });
 
 // Zarovnání textu
@@ -3207,7 +3336,10 @@ function toggleTextStyle(style) {
     if (style === 'italic') props.fontStyle = newState ? 'italic' : 'normal';
     if (style === 'underline') props.underline = newState;
     if (style === 'linethrough') props.linethrough = newState;
-    applyToActiveText(props);
+    const obj = canvas.getActiveObject();
+    if (obj) applyStyleToSelectionOrAll(obj, props);
+    scheduleTextHistory();
+    syncTextToolbarFromObject(obj);
 }
 
 document.getElementById('textBold').addEventListener('click', () => toggleTextStyle('bold'));
@@ -3330,12 +3462,23 @@ canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
         contextTarget = target;
         canvas.setActiveObject(target);
         canvas.requestRenderAll();
-        
-        // Pozice menu
+
         const rect = canvas.upperCanvasEl.getBoundingClientRect();
-        contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
-        contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
-        contextMenu.classList.remove('hidden');
+        // Pokud je textový objekt - ukaž textContextMenu
+        if (target.type === 'i-text') {
+            const menu = document.getElementById('textContextMenu');
+            menu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
+            menu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+            menu.classList.remove('hidden');
+            // sync menu values
+            try { syncTextToolbarFromObject(target); } catch (err) {}
+            const sizeEl = document.getElementById('ctxSizeVal'); if (sizeEl) sizeEl.textContent = target.fontSize || 32;
+            const colorEl = document.getElementById('ctxColor'); if (colorEl) colorEl.value = target.fill || '#000000';
+        } else {
+            contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
+            contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+            contextMenu.classList.remove('hidden');
+        }
     } else {
         hideContextMenu();
     }
@@ -3364,7 +3507,55 @@ document.addEventListener('keydown', function(e) {
 
 function hideContextMenu() {
     contextMenu.classList.add('hidden');
+    const t = document.getElementById('textContextMenu');
+    if (t) t.classList.add('hidden');
     contextTarget = null;
+}
+
+// Text context menu actions
+const textContextMenu = document.getElementById('textContextMenu');
+if (textContextMenu) {
+    document.getElementById('ctxBold').addEventListener('click', () => {
+        const obj = canvas.getActiveObject();
+        if (!obj) return;
+        const val = (getFirstSelectionStyleValue(obj, 'fontWeight') === 'bold' || obj.fontWeight === 'bold') ? 'normal' : 'bold';
+        applyStyleToSelectionOrAll(obj, { fontWeight: val });
+        scheduleTextHistory();
+        syncTextToolbarFromObject(obj);
+        hideContextMenu();
+    });
+
+    document.getElementById('ctxItalic').addEventListener('click', () => {
+        const obj = canvas.getActiveObject();
+        if (!obj) return;
+        const val = (getFirstSelectionStyleValue(obj, 'fontStyle') === 'italic' || obj.fontStyle === 'italic') ? 'normal' : 'italic';
+        applyStyleToSelectionOrAll(obj, { fontStyle: val });
+        scheduleTextHistory();
+        syncTextToolbarFromObject(obj);
+        hideContextMenu();
+    });
+
+    document.getElementById('ctxUnderline').addEventListener('click', () => {
+        const obj = canvas.getActiveObject(); if (!obj) return;
+        const val = !(getFirstSelectionStyleValue(obj, 'underline') || obj.underline);
+        applyStyleToSelectionOrAll(obj, { underline: val });
+        scheduleTextHistory(); syncTextToolbarFromObject(obj); hideContextMenu();
+    });
+
+    document.getElementById('ctxColor').addEventListener('input', (e) => {
+        const obj = canvas.getActiveObject(); if (!obj) return;
+        applyStyleToSelectionOrAll(obj, { fill: e.target.value });
+        scheduleTextHistory(); syncTextToolbarFromObject(obj);
+    });
+
+    document.getElementById('ctxAlignLeft').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; applyToActiveText({ textAlign: 'left' }); hideContextMenu(); });
+    document.getElementById('ctxAlignCenter').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; applyToActiveText({ textAlign: 'center' }); hideContextMenu(); });
+    document.getElementById('ctxAlignRight').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; applyToActiveText({ textAlign: 'right' }); hideContextMenu(); });
+
+    document.getElementById('ctxSizeMinus').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; const newSize = Math.max(6, (obj.fontSize || 32) - 1); applyStyleToSelectionOrAll(obj, { fontSize: newSize }); document.getElementById('ctxSizeVal').textContent = newSize; scheduleTextHistory(); });
+    document.getElementById('ctxSizePlus').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; const newSize = (obj.fontSize || 32) + 1; applyStyleToSelectionOrAll(obj, { fontSize: newSize }); document.getElementById('ctxSizeVal').textContent = newSize; scheduleTextHistory(); });
+
+    document.getElementById('ctxDeleteText').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (obj) { canvas.remove(obj); } hideContextMenu(); });
 }
 
 // Clipboard pro kopírování/vkládání
@@ -3642,10 +3833,71 @@ function showTextToolbar(textObj) {
   textToolbar.style.top  = canvasRect.top + rect.top - 40 + 'px';
 
   textToolbar.classList.remove('hidden');
+    // synchronizuj tlačítka podle výběru nebo kurzoru
+    syncTextToolbarFromObject(textObj);
 }
 
 function hideTextToolbar() {
   textToolbar.classList.add('hidden');
+}
+
+// =====================================================
+// Rich text helpers
+// =====================================================
+function applyStyleToSelectionOrAll(obj, styleProps) {
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+
+    const start = obj.selectionStart;
+    const end = obj.selectionEnd;
+
+    if (obj.isEditing && typeof start !== 'undefined' && start !== end) {
+        obj.setSelectionStyles(styleProps, start, end);
+    } else {
+        obj.set(styleProps);
+    }
+
+    obj.dirty = true;
+    canvas.requestRenderAll();
+}
+
+function getFirstSelectionStyleValue(obj, prop) {
+    if (!obj) return null;
+    if (obj.isEditing) {
+        const start = obj.selectionStart;
+        const end = obj.selectionEnd;
+        if (typeof start !== 'undefined' && start !== end) {
+            const styles = obj.getSelectionStyles(start, end);
+            if (!styles) return null;
+            if (Array.isArray(styles)) return styles[0] ? styles[0][prop] : null;
+            const key = Object.keys(styles)[0];
+            return styles[key] ? styles[key][prop] : null;
+        }
+    }
+    return obj[prop];
+}
+
+function syncTextToolbarFromObject(obj) {
+    if (!obj) return;
+    const isIText = obj.type === 'i-text' || obj.type === 'textbox';
+    if (!isIText) return;
+
+    // Bold
+    const weight = getFirstSelectionStyleValue(obj, 'fontWeight') || obj.fontWeight;
+    document.getElementById('textBold').classList.toggle('bg-gray-200', weight === 'bold');
+    // Italic
+    const style = getFirstSelectionStyleValue(obj, 'fontStyle') || obj.fontStyle;
+    document.getElementById('textItalic').classList.toggle('bg-gray-200', style === 'italic');
+    // Underline
+    const underline = getFirstSelectionStyleValue(obj, 'underline');
+    document.getElementById('textUnderline').classList.toggle('bg-gray-200', !!underline);
+    // Linethrough
+    const linethrough = getFirstSelectionStyleValue(obj, 'linethrough');
+    document.getElementById('textLinethrough').classList.toggle('bg-gray-200', !!linethrough);
+    // Color
+    const color = getFirstSelectionStyleValue(obj, 'fill') || obj.fill || '#000000';
+    document.getElementById('textToolbarColor').value = color;
+    // Font size
+    document.getElementById('textSize').value = obj.fontSize || 32;
 }
 
 canvas.on('selection:created', () => {
@@ -3676,19 +3928,21 @@ canvas.on('object:moving', () => {
 });
 
 document.querySelectorAll('#textToolbar button[data-style]').forEach(btn => {
-  btn.onclick = () => {
-    const obj = canvas.getActiveObject();
-    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+    btn.onclick = () => {
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
 
-    const style = btn.dataset.style;
+        const style = btn.dataset.style;
+        const props = {};
+        if (style === 'bold') props.fontWeight = (getFirstSelectionStyleValue(obj, 'fontWeight') === 'bold' || obj.fontWeight === 'bold') ? 'normal' : 'bold';
+        if (style === 'italic') props.fontStyle = (getFirstSelectionStyleValue(obj, 'fontStyle') === 'italic' || obj.fontStyle === 'italic') ? 'normal' : 'italic';
+        if (style === 'underline') props.underline = !(getFirstSelectionStyleValue(obj, 'underline') || obj.underline);
+        if (style === 'linethrough') props.linethrough = !(getFirstSelectionStyleValue(obj, 'linethrough') || obj.linethrough);
 
-    if (style === 'bold') obj.fontWeight = obj.fontWeight === 'bold' ? 'normal' : 'bold';
-    if (style === 'italic') obj.fontStyle = obj.fontStyle === 'italic' ? 'normal' : 'italic';
-    if (style === 'underline') obj.underline = !obj.underline;
-    if (style === 'linethrough') obj.linethrough = !obj.linethrough;
-
-    canvas.requestRenderAll();
-  };
+        applyStyleToSelectionOrAll(obj, props);
+        scheduleTextHistory();
+        syncTextToolbarFromObject(obj);
+    };
 });
 
 document.querySelectorAll('#textToolbar button[data-align]').forEach(btn => {
@@ -3704,9 +3958,9 @@ document.querySelectorAll('#textToolbar button[data-align]').forEach(btn => {
 document.getElementById('textToolbarColor').oninput = (e) => {
     const obj = canvas.getActiveObject();
     if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
-
-    obj.set('fill', e.target.value);
-    canvas.requestRenderAll();
+    applyStyleToSelectionOrAll(obj, { fill: e.target.value });
+    scheduleTextHistory();
+    syncTextToolbarFromObject(obj);
 };
 
 document.getElementById('deleteTextBtn').onclick = () => {
