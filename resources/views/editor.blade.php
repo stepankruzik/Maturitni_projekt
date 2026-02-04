@@ -500,27 +500,40 @@
             <span id="lineHUDText">0 px | 0°</span>
         </div>
         <!-- Plovoucí toolbar pro kreslení -->
-        <div id="drawFloatingToolbar" class="hidden fixed bg-white border rounded-lg shadow-lg px-2 py-2 z-50 flex gap-2 items-center">
-            <label class="text-xs">Stroke</label>
-            <input id="drawFloatingStrokeColor" type="color" class="h-6 w-8 p-0">
-            <label class="text-xs">Fill</label>
-            <input id="drawFloatingFillColor" type="color" class="h-6 w-8 p-0">
-            <label class="text-xs">Width</label>
-            <input id="drawFloatingStrokeWidth" type="number" min="1" max="100" value="3" class="w-12 text-xs">
-            <label class="text-xs">Style</label>
-            <select id="drawFloatingStrokeStyle" class="text-xs">
-                <option value="solid">Plná</option>
-                <option value="dashed">Čárkovaná</option>
-                <option value="dotted">Tečkovaná</option>
-            </select>
-            <label class="text-xs">Cap</label>
-            <select id="drawFloatingStrokeCap" class="text-xs">
-                <option value="butt">Butt</option>
-                <option value="round">Round</option>
-                <option value="square">Square</option>
-            </select>
-            <label class="text-xs">Transparent</label>
-            <input id="drawFloatingTransparent" type="checkbox">
+        <div id="drawFloatingToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl px-3 py-2.5 z-50 flex gap-3 items-center">
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-gray-600">Obrys</label>
+                <input id="drawFloatingStrokeColor" type="color" class="h-7 w-9 p-0 rounded border border-gray-300 cursor-pointer hover:border-gray-400 transition">
+            </div>
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-gray-600">Výplň</label>
+                <input id="drawFloatingFillColor" type="color" class="h-7 w-9 p-0 rounded border border-gray-300 cursor-pointer hover:border-gray-400 transition">
+                <label class="flex items-center gap-1 text-xs text-gray-500">
+                    <input id="drawFloatingTransparent" type="checkbox" class="rounded">
+                    Žádná
+                </label>
+            </div>
+            <div class="w-px h-6 bg-gray-200"></div>
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-gray-600">Šířka</label>
+                <input id="drawFloatingStrokeWidth" type="number" min="1" max="100" value="3" class="w-14 text-xs px-2 py-1 rounded border border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition">
+            </div>
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-gray-600">Styl</label>
+                <select id="drawFloatingStrokeStyle" class="text-xs px-2 py-1 rounded border border-gray-300 focus:border-blue-400 hover:border-gray-400 transition cursor-pointer">
+                    <option value="solid">Plná</option>
+                    <option value="dashed">Čárkovaná</option>
+                    <option value="dotted">Tečkovaná</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-gray-600">Konec</label>
+                <select id="drawFloatingStrokeCap" class="text-xs px-2 py-1 rounded border border-gray-300 focus:border-blue-400 hover:border-gray-400 transition cursor-pointer">
+                    <option value="butt">Rovný</option>
+                    <option value="round">Kulatý</option>
+                    <option value="square">Čtvercový</option>
+                </select>
+            </div>
         </div>
         <div id="textToolbar" class="hidden fixed bg-white shadow-lg rounded-lg px-2 py-1 flex gap-1 z-50">
             <button data-style="bold">B</button>
@@ -1205,6 +1218,11 @@ function setDrawMode(newMode, button) {
         if(eraserCursor) eraserCursor.set('radius', ERASER_RADIUS);
     }
 
+    if (!newMode || newMode === 'select' || newMode === 'textSelect') {
+        const drawToolbar = document.getElementById('drawFloatingToolbar');
+        if (drawToolbar) drawToolbar.classList.add('hidden');
+    }
+
     if (newMode && newMode !== 'select' && newMode !== 'textSelect') {
         canvas.selection = false;
         lockImage(true);
@@ -1241,35 +1259,85 @@ function setDrawMode(newMode, button) {
 function updateDrawFloatingToolbarVisibility() {
     const el = document.getElementById('drawFloatingToolbar');
     if (!el) return;
-    const shouldShow = drawMode !== null || canvas.isDrawingMode === true;
+    
+    const activeObj = canvas.getActiveObject();
+    const hasDrawSelection = activeObj && (activeObj.layer === 'draw' || 
+        (activeObj.type === 'activeSelection' && activeObj.getObjects().some(o => o.layer === 'draw')));
+    const shouldShow = (drawMode !== null && drawMode !== 'select' && drawMode !== 'textSelect') || 
+                       canvas.isDrawingMode === true || 
+                       hasDrawSelection;
+    
     if (shouldShow) {
         const rect = canvas.upperCanvasEl.getBoundingClientRect();
         el.style.left = (rect.left + 12) + 'px';
         el.style.top = (rect.top + 12) + 'px';
         el.classList.remove('hidden');
 
-        // fill controls with current defaults or active object
-        const strokeColor = document.getElementById('drawColor')?.value || '#000000';
-        const fillColor = document.getElementById('fillColor')?.value || 'transparent';
-        document.getElementById('drawFloatingStrokeColor').value = strokeColor;
-        document.getElementById('drawFloatingFillColor').value = fillColor === 'transparent' ? '#ffffff' : fillColor;
-        document.getElementById('drawFloatingStrokeWidth').value = document.getElementById('brushWidth')?.value || 3;
-        document.getElementById('drawFloatingStrokeStyle').value = document.getElementById('strokeStyle')?.value || 'solid';
-        document.getElementById('drawFloatingStrokeCap').value = document.getElementById('strokeCap')?.value || 'butt';
-        document.getElementById('drawFloatingTransparent').checked = (fillColor === 'transparent');
+        if (activeObj && activeObj.layer === 'draw') {
+            if (activeObj.stroke) document.getElementById('drawFloatingStrokeColor').value = activeObj.stroke;
+            if (activeObj.fill && activeObj.fill !== 'transparent') {
+                document.getElementById('drawFloatingFillColor').value = activeObj.fill;
+                document.getElementById('drawFloatingTransparent').checked = false;
+            } else {
+                document.getElementById('drawFloatingTransparent').checked = true;
+            }
+            if (activeObj.strokeWidth) document.getElementById('drawFloatingStrokeWidth').value = activeObj.strokeWidth;
+            if (activeObj.strokeLineCap) document.getElementById('drawFloatingStrokeCap').value = activeObj.strokeLineCap;
+            // Sync dash style
+            const dash = activeObj.strokeDashArray;
+            if (!dash || dash.length === 0) {
+                document.getElementById('drawFloatingStrokeStyle').value = 'solid';
+            } else if (dash[0] > dash[1]) {
+                document.getElementById('drawFloatingStrokeStyle').value = 'dashed';
+            } else {
+                document.getElementById('drawFloatingStrokeStyle').value = 'dotted';
+            }
+        } else {
+            const strokeColor = document.getElementById('drawColor')?.value || '#000000';
+            const fillColor = document.getElementById('fillColor')?.value || 'transparent';
+            document.getElementById('drawFloatingStrokeColor').value = strokeColor;
+            document.getElementById('drawFloatingFillColor').value = fillColor === 'transparent' ? '#ffffff' : fillColor;
+            document.getElementById('drawFloatingStrokeWidth').value = document.getElementById('brushWidth')?.value || 3;
+            document.getElementById('drawFloatingStrokeStyle').value = document.getElementById('strokeStyle')?.value || 'solid';
+            document.getElementById('drawFloatingStrokeCap').value = document.getElementById('strokeCap')?.value || 'butt';
+            document.getElementById('drawFloatingTransparent').checked = (fillColor === 'transparent');
+        }
     } else {
         el.classList.add('hidden');
     }
 }
 
-// Hook toolbar inputs
 document.addEventListener('DOMContentLoaded', () => {
+    function applyToDrawTarget(props) {
+        const target = drawContextTarget || canvas.getActiveObject();
+        if (!target) return;
+        
+        if (target.type === 'activeSelection') {
+            target.getObjects().forEach(obj => {
+                if (obj.layer === 'draw') {
+                    obj.set(props);
+                    if (obj.type === 'group' && obj._objects) {
+                        obj._objects.forEach(child => child.set(props));
+                    }
+                }
+            });
+        } else {
+            target.set(props);
+            if (target.type === 'group' && target._objects) {
+                target._objects.forEach(child => child.set(props));
+            }
+        }
+        if (target.setCoords) target.setCoords();
+        canvas.requestRenderAll();
+    }
+
     const sc = document.getElementById('drawFloatingStrokeColor');
     if (sc) sc.addEventListener('input', (e) => {
         const v = e.target.value;
         const drawColorEl = document.getElementById('drawColor');
         if (drawColorEl) drawColorEl.value = v;
         if (canvas.freeDrawingBrush) canvas.freeDrawingBrush.color = v;
+        applyToDrawTarget({ stroke: v });
     });
 
     const fw = document.getElementById('drawFloatingStrokeWidth');
@@ -1278,18 +1346,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const brushWidthEl = document.getElementById('brushWidth');
         if (brushWidthEl) brushWidthEl.value = v;
         if (canvas.freeDrawingBrush) canvas.freeDrawingBrush.width = v;
+        applyToDrawTarget({ strokeWidth: v });
     });
 
     const styleEl = document.getElementById('drawFloatingStrokeStyle');
     if (styleEl) styleEl.addEventListener('change', (e) => {
         const v = e.target.value;
         document.getElementById('strokeStyle').value = v;
+        const target = drawContextTarget || canvas.getActiveObject();
+        if (target) {
+            let dash = null;
+            const widthVal = target.strokeWidth || 1;
+            if (v === 'dashed') dash = [widthVal * 2, widthVal];
+            if (v === 'dotted') dash = [widthVal, widthVal * 1.5];
+            applyToDrawTarget({ strokeDashArray: dash });
+        }
     });
 
     const capEl = document.getElementById('drawFloatingStrokeCap');
     if (capEl) capEl.addEventListener('change', (e) => {
         const v = e.target.value;
         document.getElementById('strokeCap').value = v;
+        applyToDrawTarget({ strokeLineCap: v });
+    });
+    
+    const fillEl = document.getElementById('drawFloatingFillColor');
+    if (fillEl) fillEl.addEventListener('input', (e) => {
+        const v = e.target.value;
+        document.getElementById('fillColor').value = v;
+        document.getElementById('fillTransparent').checked = false;
+        applyToDrawTarget({ fill: v });
+    });
+    
+    const transEl = document.getElementById('drawFloatingTransparent');
+    if (transEl) transEl.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.getElementById('fillTransparent').checked = checked;
+        const fillVal = checked ? 'transparent' : (document.getElementById('drawFloatingFillColor')?.value || '#ffffff');
+        applyToDrawTarget({ fill: fillVal });
     });
 });
 
@@ -1331,7 +1425,6 @@ canvas.on('mouse:down', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
 
-    // Snap Line Tool handling
     if (snapLineIsActive) {
         snapLineMouseDown(o);
         return;
@@ -1579,7 +1672,6 @@ canvas.on('mouse:move', (o) => {
     const e = o.e;
     const pointer = canvas.getPointer(e);
 
-    // Snap Line Tool handling
     if (snapLineIsActive) {
         snapLineMouseMove(o);
         return;
@@ -1684,9 +1776,10 @@ canvas.on('mouse:move', (o) => {
             star.setCoords();
         }
 
-        if (drawMode === 'heart') {
+        if (drawMode === 'heart' && heart) {
             const scale = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 22;
             heart.set({ scaleX: scale, scaleY: scale });
+            canvas.requestRenderAll();
         }
         
         if (drawMode === 'arrow') {
@@ -1759,7 +1852,6 @@ canvas.on('mouse:move', (o) => {
 });
 
 canvas.on('mouse:up', (o) => {
-    // Snap Line Tool handling
     if (snapLineIsActive) {
         snapLineMouseUp(o);
         return;
@@ -1974,7 +2066,7 @@ function applyToActiveObject(props) {
 // Styl čáry
 document.getElementById('strokeStyle').addEventListener('change', e => {
     const obj = canvas.getActiveObject();
-    if (!obj || !obj.stroke) return;
+    if (!obj || obj.strokeWidth === undefined) return;
 
     const width = obj.strokeWidth || 1;
 
@@ -1987,9 +2079,11 @@ document.getElementById('strokeStyle').addEventListener('change', e => {
 
 // Zakončení čáry
 document.getElementById('strokeCap').addEventListener('change', e => {
-    applyToActiveObject({
-        strokeLineCap: e.target.value
-    });
+    const obj = canvas.getActiveObject();
+    if (obj && obj.strokeLineCap !== undefined) {
+        obj.set({ strokeLineCap: e.target.value });
+        canvas.requestRenderAll();
+    }
 });
 
 function getDashFromUI() {
@@ -2553,6 +2647,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         canvas.defaultCursor = 'default';
         canvas.hoverCursor = 'move';
         canvas.isDrawingMode = false;
+        
+        const drawToolbar = document.getElementById('drawFloatingToolbar');
+        if (drawToolbar) drawToolbar.classList.add('hidden');
 
         // vypnout crop
         if (cropRect) {
@@ -3069,9 +3166,18 @@ function handleSelectionChange(e) {
 
     if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
         updateTextControlsUI(activeObject);
+        hideDrawFloatingToolbar();
     } else {
         if (activeObject) {
             syncDrawingControls(activeObject);
+            if (activeObject.layer === 'draw' || 
+                (activeObject.type === 'activeSelection' && activeObject.getObjects().some(o => o.layer === 'draw'))) {
+                updateDrawFloatingToolbarVisibility();
+            }
+        } else {
+            if (!drawMode || drawMode === 'select' || drawMode === 'textSelect') {
+                hideDrawFloatingToolbar();
+            }
         }
         resetTextControlsUI();
     }
@@ -3115,10 +3221,27 @@ function syncDrawingControls(obj) {
 }
 
 document.getElementById('drawColor').addEventListener('input', () => {
-    // Aktualizace aktivního objektu
+    const color = document.getElementById('drawColor').value;
+    
     const activeObj = canvas.getActiveObject();
-    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.stroke !== undefined) {
-        activeObj.set({ stroke: getStrokeColor() });
+    if (activeObj) {
+        if (activeObj.type === 'activeSelection') {
+            activeObj.getObjects().forEach(obj => {
+                if (obj.stroke !== undefined) obj.set({ stroke: color });
+                if (obj.type === 'group' && obj._objects) {
+                    obj._objects.forEach(child => {
+                        if (child.stroke !== undefined) child.set({ stroke: color });
+                    });
+                }
+            });
+        } else {
+            if (activeObj.stroke !== undefined) activeObj.set({ stroke: color });
+            if (activeObj.type === 'group' && activeObj._objects) {
+                activeObj._objects.forEach(child => {
+                    if (child.stroke !== undefined) child.set({ stroke: color });
+                });
+            }
+        }
         canvas.requestRenderAll();
     }
 
@@ -3126,26 +3249,43 @@ document.getElementById('drawColor').addEventListener('input', () => {
         canvas.isDrawingMode &&
         canvas.freeDrawingBrush instanceof fabric.PencilBrush
     ) {
-        canvas.freeDrawingBrush.color = getStrokeColor();
+        canvas.freeDrawingBrush.color = color;
     }
 });
 
 // Aktualizace barvy výplně aktivního objektu
 document.getElementById('fillColor').addEventListener('input', () => {
+    const fillColor = document.getElementById('fillColor').value;
+    const isTransparent = document.getElementById('fillTransparent').checked;
+    const fillVal = isTransparent ? 'transparent' : fillColor;
+    
     const activeObj = canvas.getActiveObject();
-    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.fill !== undefined) {
-        if (!document.getElementById('fillTransparent').checked) {
-            activeObj.set({ fill: getFillColor() });
-            canvas.requestRenderAll();
+    if (activeObj) {
+        if (activeObj.type === 'activeSelection') {
+            activeObj.getObjects().forEach(obj => {
+                if (obj.fill !== undefined) obj.set({ fill: fillVal });
+            });
+        } else {
+            if (activeObj.fill !== undefined) activeObj.set({ fill: fillVal });
         }
+        canvas.requestRenderAll();
     }
 });
 
 // Aktualizace průhledné výplně aktivního objektu
 document.getElementById('fillTransparent').addEventListener('change', () => {
+    const isTransparent = document.getElementById('fillTransparent').checked;
+    const fillVal = isTransparent ? 'transparent' : document.getElementById('fillColor').value;
+    
     const activeObj = canvas.getActiveObject();
-    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.fill !== undefined) {
-        activeObj.set({ fill: getFillColor() });
+    if (activeObj) {
+        if (activeObj.type === 'activeSelection') {
+            activeObj.getObjects().forEach(obj => {
+                if (obj.fill !== undefined) obj.set({ fill: fillVal });
+            });
+        } else {
+            if (activeObj.fill !== undefined) activeObj.set({ fill: fillVal });
+        }
         canvas.requestRenderAll();
     }
 });
@@ -3154,13 +3294,29 @@ document.getElementById('fillTransparent').addEventListener('change', () => {
 document.getElementById('brushWidth').addEventListener('input', (e) => {
     const width = parseInt(e.target.value);
 
-    // Aktualizace šířky čáry aktivního objektu
     const activeObj = canvas.getActiveObject();
-    if (activeObj && activeObj !== currentImage && activeObj !== cropRect && activeObj.strokeWidth !== undefined) {
-        activeObj.set({ 
-            strokeWidth: width,
-            strokeDashArray: getDashFromUIForWidth(width)
-        });
+    if (activeObj) {
+        if (activeObj.type === 'activeSelection') {
+            activeObj.getObjects().forEach(obj => {
+                if (obj.strokeWidth !== undefined) {
+                    obj.set({ strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width) });
+                }
+                if (obj.type === 'group' && obj._objects) {
+                    obj._objects.forEach(child => {
+                        if (child.strokeWidth !== undefined) child.set({ strokeWidth: width });
+                    });
+                }
+            });
+        } else {
+            if (activeObj.strokeWidth !== undefined) {
+                activeObj.set({ strokeWidth: width, strokeDashArray: getDashFromUIForWidth(width) });
+            }
+            if (activeObj.type === 'group' && activeObj._objects) {
+                activeObj._objects.forEach(child => {
+                    if (child.strokeWidth !== undefined) child.set({ strokeWidth: width });
+                });
+            }
+        }
         canvas.requestRenderAll();
     }
 
@@ -3464,17 +3620,17 @@ canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
         canvas.requestRenderAll();
 
         const rect = canvas.upperCanvasEl.getBoundingClientRect();
-        // Pokud je textový objekt - ukaž textContextMenu
-        if (target.type === 'i-text') {
+
+        if (target.type === 'i-text' || target.type === 'textbox') {
             const menu = document.getElementById('textContextMenu');
             menu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
             menu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
             menu.classList.remove('hidden');
-            // sync menu values
-            try { syncTextToolbarFromObject(target); } catch (err) {}
+            try { syncTextContextMenuFromObject(target); } catch (err) {}
             const sizeEl = document.getElementById('ctxSizeVal'); if (sizeEl) sizeEl.textContent = target.fontSize || 32;
             const colorEl = document.getElementById('ctxColor'); if (colorEl) colorEl.value = target.fill || '#000000';
-        } else {
+        } 
+        else if (target.layer === 'draw') {
             contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
             contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
             contextMenu.classList.remove('hidden');
@@ -3512,7 +3668,59 @@ function hideContextMenu() {
     contextTarget = null;
 }
 
-// Text context menu actions
+function syncTextContextMenuFromObject(obj) {
+    if (!obj) return;
+    try {
+        const boldActive = (getFirstSelectionStyleValue(obj, 'fontWeight') === 'bold') || obj.fontWeight === 'bold';
+        const italicActive = (getFirstSelectionStyleValue(obj, 'fontStyle') === 'italic') || obj.fontStyle === 'italic';
+        const underlineActive = (getFirstSelectionStyleValue(obj, 'underline') === true) || obj.underline === true;
+        document.getElementById('ctxBold').classList.toggle('bg-gray-200', boldActive);
+        document.getElementById('ctxItalic').classList.toggle('bg-gray-200', italicActive);
+        document.getElementById('ctxUnderline').classList.toggle('bg-gray-200', underlineActive);
+        const colorEl = document.getElementById('ctxColor'); if (colorEl) colorEl.value = getFirstSelectionStyleValue(obj, 'fill') || obj.fill || '#000000';
+    } catch (err) {}
+}
+
+let drawContextTarget = null;
+
+function showDrawFloatingAt(clientX, clientY, targetObj) {
+    const el = document.getElementById('drawFloatingToolbar');
+    if (!el) return;
+    drawContextTarget = targetObj;
+    const rect = canvas.upperCanvasEl.getBoundingClientRect();
+    el.style.left = (clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
+    el.style.top = (clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+    el.classList.remove('hidden');
+
+    try {
+        const stroke = targetObj.stroke || '#000000';
+        const fill = targetObj.fill || 'transparent';
+        const width = targetObj.strokeWidth || 1;
+        const dash = targetObj.strokeDashArray || null;
+        const cap = targetObj.strokeLineCap || 'butt';
+
+        document.getElementById('drawFloatingStrokeColor').value = stroke;
+        document.getElementById('drawFloatingFillColor').value = (fill === 'transparent' ? '#ffffff' : fill);
+        document.getElementById('drawFloatingStrokeWidth').value = width;
+        if (dash && dash.length) {
+            const w = parseFloat(width) || 1;
+            if (dash[0] === w*2) document.getElementById('drawFloatingStrokeStyle').value = 'dashed';
+            else document.getElementById('drawFloatingStrokeStyle').value = 'dotted';
+        } else {
+            document.getElementById('drawFloatingStrokeStyle').value = 'solid';
+        }
+        document.getElementById('drawFloatingStrokeCap').value = cap;
+        document.getElementById('drawFloatingTransparent').checked = (fill === 'transparent');
+    } catch (err) {}
+}
+
+function hideDrawFloatingToolbar() {
+    const el = document.getElementById('drawFloatingToolbar');
+    if (!el) return;
+    el.classList.add('hidden');
+    drawContextTarget = null;
+}
+
 const textContextMenu = document.getElementById('textContextMenu');
 if (textContextMenu) {
     document.getElementById('ctxBold').addEventListener('click', () => {
@@ -3764,6 +3972,9 @@ function setTextEditingMode(mode) {
             obj.evented = true;
         });
         canvas.requestRenderAll();
+
+        const drawToolbar = document.getElementById('drawFloatingToolbar');
+        if (drawToolbar) drawToolbar.classList.add('hidden');
     } else if (mode === 'draw') {
         drawMode = 'textBox';
         canvas.isDrawingMode = false;
@@ -3833,17 +4044,14 @@ function showTextToolbar(textObj) {
   textToolbar.style.top  = canvasRect.top + rect.top - 40 + 'px';
 
   textToolbar.classList.remove('hidden');
-    // synchronizuj tlačítka podle výběru nebo kurzoru
     syncTextToolbarFromObject(textObj);
+    hideDrawFloatingToolbar();
 }
 
 function hideTextToolbar() {
   textToolbar.classList.add('hidden');
 }
 
-// =====================================================
-// Rich text helpers
-// =====================================================
 function applyStyleToSelectionOrAll(obj, styleProps) {
     if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
 
