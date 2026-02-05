@@ -1,3 +1,4 @@
+@props(['hideNav' => false])
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-100">
 <head>
@@ -11,6 +12,7 @@
 </head>
 <body class="h-full">
 
+@if(!$hideNav)
 <div class="min-h-full">
   <nav class="bg-gray-800">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -93,6 +95,15 @@
     </div>
   </main>
 </div>
+@else
+<div class="min-h-full">
+  <main>
+    <div class="p-4">
+      {{ $slot }}
+    </div>
+  </main>
+</div>
+@endif
 
 </body>
 </html>
