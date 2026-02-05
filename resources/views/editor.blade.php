@@ -1,5 +1,4 @@
-<x-layout>
-    <x-slot:heading>Editor obrázku</x-slot:heading>
+<x-layout :hideNav="true">
     <div class="flex gap-2 mb-3">
     <button id="undoBtn" class="px-3 py-1 bg-gray-700 text-white rounded transition-all duration-150 active:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Zpět">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo2-icon lucide-undo-2 w-5 h-5 inline">
@@ -47,13 +46,48 @@
     </div>
 
     <div id="panelFilters" class="tab-panel hidden">
+        <div class="mb-3">
+            <p class="text-sm font-semibold text-gray-600 mb-2">Aplikovat filtry na vrstvy:</p>
+            <div class="flex gap-3 flex-wrap">
+                <label class="flex items-center gap-1 text-sm">
+                    <input type="checkbox" id="filterLayerImage" checked class="filterLayerCheck">
+                    Obrázek
+                </label>
+                <label class="flex items-center gap-1 text-sm">
+                    <input type="checkbox" id="filterLayerDraw" class="filterLayerCheck">
+                    Kresby
+                </label>
+                <label class="flex items-center gap-1 text-sm">
+                    <input type="checkbox" id="filterLayerText" class="filterLayerCheck">
+                    Text
+                </label>
+            </div>
+        </div>
         <div id="filterPreview" class="flex flex-wrap gap-2 mt-2">
-            <img src="/thumbnails/original.png" class="filter-thumb" data-filter="original">
-            <img src="/thumbnails/grayscale.png" class="filter-thumb" data-filter="grayscale">
-            <img src="/thumbnails/sepia.png" class="filter-thumb" data-filter="sepia">
-            <img src="/thumbnails/invert.png" class="filter-thumb" data-filter="invert">
-            <img src="/thumbnails/blur.png" class="filter-thumb" data-filter="blur">
-            <img src="/thumbnails/sharpen.png" class="filter-thumb" data-filter="sharpen">
+            <div class="filter-thumb-wrap" data-filter="original">
+                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <span class="text-xs block text-center">Originál</span>
+            </div>
+            <div class="filter-thumb-wrap" data-filter="grayscale">
+                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <span class="text-xs block text-center">Šedá</span>
+            </div>
+            <div class="filter-thumb-wrap" data-filter="sepia">
+                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <span class="text-xs block text-center">Sépie</span>
+            </div>
+            <div class="filter-thumb-wrap" data-filter="invert">
+                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <span class="text-xs block text-center">Inverze</span>
+            </div>
+            <div class="filter-thumb-wrap" data-filter="blur">
+                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <span class="text-xs block text-center">Rozostření</span>
+            </div>
+            <div class="filter-thumb-wrap" data-filter="sharpen">
+                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <span class="text-xs block text-center">Zaostření</span>
+            </div>
         </div>
     </div>
 
@@ -535,21 +569,32 @@
                 </select>
             </div>
         </div>
-        <div id="textToolbar" class="hidden fixed bg-white shadow-lg rounded-lg px-2 py-1 flex gap-1 z-50">
-            <button data-style="bold">B</button>
-            <button data-style="italic">I</button>
-            <button data-style="underline">U</button>
-            <button data-style="linethrough">S</button>
-          
-            <span class="mx-1 border-l"></span>
-          
-            <button data-align="left">⬅</button>
-            <button data-align="center">⬌</button>
-            <button data-align="right">➡</button>
-          
-            <input type="color" id="textToolbarColor">
-          
-            <button id="deleteTextBtn">🗑</button>
+        <div id="textToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm shadow-xl rounded-xl px-3 py-2 flex items-center gap-2 z-50 border border-gray-200">
+            <!-- Styl textu B I U S -->
+            <div class="flex gap-1 border-r border-gray-200 pr-2">
+                <button id="tbBold" data-style="bold" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 font-bold text-sm transition" title="Tučné">B</button>
+                <button id="tbItalic" data-style="italic" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 italic text-sm transition" title="Kurzíva">I</button>
+                <button id="tbUnderline" data-style="underline" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 underline text-sm transition" title="Podtržené">U</button>
+                <button id="tbLinethrough" data-style="linethrough" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 line-through text-sm transition" title="Přeškrtnuté">S</button>
+            </div>
+            <!-- Barva -->
+            <div class="flex items-center gap-1 border-r border-gray-200 pr-2">
+                <input type="color" id="textToolbarColor" class="w-7 h-7 rounded cursor-pointer border-0" title="Barva textu">
+            </div>
+            <!-- Velikost -->
+            <div class="flex items-center gap-1 border-r border-gray-200 pr-2">
+                <button id="tbSizeMinus" class="w-6 h-6 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zmenšit">−</button>
+                <span id="tbSizeVal" class="text-xs w-6 text-center">32</span>
+                <button id="tbSizePlus" class="w-6 h-6 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zvětšit">+</button>
+            </div>
+            <!-- Zarovnání -->
+            <div class="flex gap-1 border-r border-gray-200 pr-2">
+                <button id="tbAlignLeft" data-align="left" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zarovnat vlevo">⬅</button>
+                <button id="tbAlignCenter" data-align="center" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Na střed">⬌</button>
+                <button id="tbAlignRight" data-align="right" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zarovnat vpravo">➡</button>
+            </div>
+            <!-- Smazat -->
+            <button id="deleteTextBtn" class="w-7 h-7 rounded hover:bg-red-100 active:bg-red-200 text-red-600 transition" title="Smazat text">🗑</button>
         </div>
         <!-- Kontekstové menu pro text -->
         <div id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
@@ -641,6 +686,10 @@
 const canvas = new fabric.Canvas('canvas', {
     preserveObjectStacking: true  // Zachová pořadí vrstev při výběru objektu
 });
+
+// Globální proměnná pro cílový objekt kreslení
+let drawContextTarget = null;
+
 // UNDO / REDO 
 const HISTORY = {
   undoStack: [],
@@ -995,6 +1044,31 @@ function enableLineEndpointsControls(lineObj) {
     lineObj.hasBorders = false;
 }
 
+// Sledování aktuálně editované čáry (pro endpoint controls)
+let currentEditingLine = null;
+
+// Vypne endpoint controls a obnoví standardní controls
+function disableLineEndpointsControls(lineObj) {
+    if (!lineObj || lineObj.type !== 'line') return;
+    
+    // Obnovit standardní controls
+    lineObj.controls = fabric.Line.prototype.controls;
+    lineObj.lockScalingX = false;
+    lineObj.lockScalingY = false;
+    lineObj.lockRotation = false;
+    lineObj.hasRotatingPoint = true;
+    lineObj.hasBorders = true;
+    lineObj.setCoords();
+}
+
+// Vypne endpoint controls na všech čárách
+function disableAllLineEndpoints() {
+    canvas.getObjects('line').forEach(line => {
+        disableLineEndpointsControls(line);
+    });
+    currentEditingLine = null;
+}
+
 function scheduleFilterHistory() {
     clearTimeout(filterHistoryTimer);
     filterHistoryTimer = setTimeout(() => {
@@ -1116,8 +1190,7 @@ function snapLineMouseUp(e) {
             selectable: false,
             evented: false
         });
-        
-        enableLineEndpointsControls(snapCurrentLine);
+        // Endpoint controls se aktivují až na double-click
     }
     
     hideSnapIndicator();
@@ -1206,6 +1279,9 @@ function setDrawMode(newMode, button) {
     drawMode = newMode;
     canvas.isDrawingMode = (newMode === 'brush');
     
+    // Při přepnutí nástroje vypnout endpoint controls na čárách
+    disableAllLineEndpoints();
+    
     if (newMode !== 'eraser') {
         hideEraserCursor();
     }
@@ -1274,6 +1350,7 @@ function updateDrawFloatingToolbarVisibility() {
         el.classList.remove('hidden');
 
         if (activeObj && activeObj.layer === 'draw') {
+            drawContextTarget = activeObj;  // Nastav cílový objekt
             if (activeObj.stroke) document.getElementById('drawFloatingStrokeColor').value = activeObj.stroke;
             if (activeObj.fill && activeObj.fill !== 'transparent') {
                 document.getElementById('drawFloatingFillColor').value = activeObj.fill;
@@ -1292,6 +1369,30 @@ function updateDrawFloatingToolbarVisibility() {
             } else {
                 document.getElementById('drawFloatingStrokeStyle').value = 'dotted';
             }
+        } else if (activeObj && activeObj.type === 'activeSelection') {
+            // Pro multi-selection nastav target jako activeSelection
+            drawContextTarget = activeObj;
+            // Použij hodnoty z prvního draw objektu ve výběru
+            const firstDraw = activeObj.getObjects().find(o => o.layer === 'draw');
+            if (firstDraw) {
+                if (firstDraw.stroke) document.getElementById('drawFloatingStrokeColor').value = firstDraw.stroke;
+                if (firstDraw.fill && firstDraw.fill !== 'transparent') {
+                    document.getElementById('drawFloatingFillColor').value = firstDraw.fill;
+                    document.getElementById('drawFloatingTransparent').checked = false;
+                } else {
+                    document.getElementById('drawFloatingTransparent').checked = true;
+                }
+                if (firstDraw.strokeWidth) document.getElementById('drawFloatingStrokeWidth').value = firstDraw.strokeWidth;
+                if (firstDraw.strokeLineCap) document.getElementById('drawFloatingStrokeCap').value = firstDraw.strokeLineCap;
+                const dash = firstDraw.strokeDashArray;
+                if (!dash || dash.length === 0) {
+                    document.getElementById('drawFloatingStrokeStyle').value = 'solid';
+                } else if (dash[0] > dash[1]) {
+                    document.getElementById('drawFloatingStrokeStyle').value = 'dashed';
+                } else {
+                    document.getElementById('drawFloatingStrokeStyle').value = 'dotted';
+                }
+            }
         } else {
             const strokeColor = document.getElementById('drawColor')?.value || '#000000';
             const fillColor = document.getElementById('fillColor')?.value || 'transparent';
@@ -1301,36 +1402,44 @@ function updateDrawFloatingToolbarVisibility() {
             document.getElementById('drawFloatingStrokeStyle').value = document.getElementById('strokeStyle')?.value || 'solid';
             document.getElementById('drawFloatingStrokeCap').value = document.getElementById('strokeCap')?.value || 'butt';
             document.getElementById('drawFloatingTransparent').checked = (fillColor === 'transparent');
+            drawContextTarget = null;  // Není vybraný konkrétní objekt
         }
     } else {
         el.classList.add('hidden');
+        drawContextTarget = null;  // Reset při skrytí
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    function applyToDrawTarget(props) {
-        const target = drawContextTarget || canvas.getActiveObject();
-        if (!target) return;
-        
-        if (target.type === 'activeSelection') {
-            target.getObjects().forEach(obj => {
-                if (obj.layer === 'draw') {
-                    obj.set(props);
-                    if (obj.type === 'group' && obj._objects) {
-                        obj._objects.forEach(child => child.set(props));
-                    }
-                }
-            });
-        } else {
-            target.set(props);
-            if (target.type === 'group' && target._objects) {
-                target._objects.forEach(child => child.set(props));
-            }
+// Globální funkce pro aplikaci vlastností na kreslený objekt
+function applyToDrawTarget(props) {
+    const target = drawContextTarget || canvas.getActiveObject();
+    if (!target) return;
+    
+    function applyPropsRecursive(obj) {
+        if (!obj) return;
+        obj.set(props);
+        obj.dirty = true;
+        if (obj._objects && obj._objects.length) {
+            obj._objects.forEach(child => applyPropsRecursive(child));
         }
-        if (target.setCoords) target.setCoords();
-        canvas.requestRenderAll();
     }
+    
+    if (target.type === 'activeSelection') {
+        target.getObjects().forEach(obj => {
+            if (obj.layer === 'draw' || obj.type === 'path' || obj.type === 'group') {
+                applyPropsRecursive(obj);
+            }
+        });
+    } else {
+        applyPropsRecursive(target);
+    }
+    
+    if (target.setCoords) target.setCoords();
+    canvas.requestRenderAll();
+    saveHistoryState('draw-style');
+}
 
+document.addEventListener('DOMContentLoaded', () => {
     const sc = document.getElementById('drawFloatingStrokeColor');
     if (sc) sc.addEventListener('input', (e) => {
         const v = e.target.value;
@@ -1552,7 +1661,7 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'heart') {
-            const path = 'M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.42,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C18.58,3 21,5.41 21,8.5C21,12.27 15.6,15.36 10.45,20.03L9,21.35Z';
+            const path = 'M -10 -2.5 a 5.5 5.5 0 0 1 9.591 -3.676 a 0.56 0.56 0 0 0 0.818 0 A 5.49 5.49 0 0 1 10 -2.5 c 0 2.29 -1.5 4 -3 5.5 l -5.492 5.313 a 2 2 0 0 1 -3 0.019 L -7 3 c -1.5 -1.5 -3 -3.2 -3 -5.5';
             heart = new fabric.Path(path, {
                 left: origX,
                 top: origY,
@@ -1562,9 +1671,8 @@ canvas.on('mouse:down', (o) => {
                 stroke: getStrokeColor(),
                 strokeWidth: width,
                 strokeUniform: true,
-                objectCaching: false,
-                fillRule: 'nonzero',
-                strokeLineCap: document.getElementById('strokeCap').value,
+                strokeLineCap: 'round',
+                strokeLineJoin: 'round',
                 selectable: false,
                 evented: false,
                 layer: 'draw'
@@ -1954,6 +2062,26 @@ canvas.on('mouse:up', (o) => {
     }
 });
 
+// Double-click na čáru aktivuje endpoint controls
+canvas.on('mouse:dblclick', (o) => {
+    const target = o.target;
+    
+    // Pouze pro čáry v draw layer
+    if (target && target.type === 'line' && target.layer === 'draw') {
+        // Vypnout endpoint controls na předchozí editované čáře
+        if (currentEditingLine && currentEditingLine !== target) {
+            disableLineEndpointsControls(currentEditingLine);
+        }
+        
+        // Aktivovat endpoint controls na této čáře
+        enableLineEndpointsControls(target);
+        currentEditingLine = target;
+        
+        canvas.setActiveObject(target);
+        canvas.requestRenderAll();
+    }
+});
+
 
 document.getElementById('drawSelectBtn').addEventListener('click', () => {
     deactivateSnapLineTool();
@@ -2063,27 +2191,70 @@ function applyToActiveObject(props) {
     canvas.requestRenderAll();
 }
 
+// Pomocná funkce pro aplikaci vlastností na objekt včetně skupin
+function applyStrokePropsToObject(obj, props) {
+    if (!obj) return;
+    
+    // Pro skupiny aplikuj na všechny děti
+    if (obj.type === 'group' && obj._objects) {
+        obj._objects.forEach(child => applyStrokePropsToObject(child, props));
+        return;
+    }
+    
+    // Zkontroluj že objekt podporuje stroke
+    if (obj.stroke === undefined && obj.strokeWidth === undefined) return;
+    
+    obj.set(props);
+}
+
+// Pomocná funkce pro aplikaci stroke vlastností na výběr (včetně activeSelection a groups)
+function applyStrokePropsToSelection(props) {
+    const activeObj = canvas.getActiveObject();
+    if (!activeObj) return false;
+    
+    if (activeObj.type === 'activeSelection') {
+        activeObj.getObjects().forEach(obj => applyStrokePropsToObject(obj, props));
+    } else {
+        applyStrokePropsToObject(activeObj, props);
+    }
+    
+    canvas.requestRenderAll();
+    return true;
+}
+
 // Styl čáry
 document.getElementById('strokeStyle').addEventListener('change', e => {
-    const obj = canvas.getActiveObject();
-    if (!obj || obj.strokeWidth === undefined) return;
-
-    const width = obj.strokeWidth || 1;
-
-    obj.set({
-        strokeDashArray: getDashFromUIForWidth(width)
-    });
-
+    const activeObj = canvas.getActiveObject();
+    if (!activeObj) return;
+    
+    // Funkce pro získání dash array podle šířky objektu
+    const applyDash = (obj) => {
+        if (!obj || obj.stroke === undefined) return;
+        const width = obj.strokeWidth || 1;
+        obj.set({ strokeDashArray: getDashFromUIForWidth(width) });
+    };
+    
+    if (activeObj.type === 'activeSelection') {
+        activeObj.getObjects().forEach(obj => {
+            if (obj.type === 'group' && obj._objects) {
+                obj._objects.forEach(applyDash);
+            } else {
+                applyDash(obj);
+            }
+        });
+    } else if (activeObj.type === 'group' && activeObj._objects) {
+        activeObj._objects.forEach(applyDash);
+    } else {
+        applyDash(activeObj);
+    }
+    
     canvas.requestRenderAll();
 });
 
 // Zakončení čáry
 document.getElementById('strokeCap').addEventListener('change', e => {
-    const obj = canvas.getActiveObject();
-    if (obj && obj.strokeLineCap !== undefined) {
-        obj.set({ strokeLineCap: e.target.value });
-        canvas.requestRenderAll();
-    }
+    const capValue = e.target.value;
+    applyStrokePropsToSelection({ strokeLineCap: capValue });
 });
 
 function getDashFromUI() {
@@ -2215,6 +2386,9 @@ if (isBlank && rulerEnabled) {
         fitImageToCanvas(img);
         fitObjectToViewport(img);
         updateImageSize();
+        
+        // Generovat náhledy filtrů po načtení obrázku
+        setTimeout(() => generateFilterPreviews(), 100);
     }, { crossOrigin: 'anonymous' });
 }
 
@@ -2415,24 +2589,329 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
 let activeFilter = null;
 
 function applyFilters() {
-    if (!currentImage || !currentImage.filters) return;
-
+    const filterImage = document.getElementById('filterLayerImage')?.checked ?? true;
+    const filterDraw = document.getElementById('filterLayerDraw')?.checked ?? false;
+    const filterText = document.getElementById('filterLayerText')?.checked ?? false;
+    
     const brightness = parseFloat(document.getElementById('brightness').value);
     const contrast = parseFloat(document.getElementById('contrast').value);
     const saturation = parseFloat(document.getElementById('saturation').value);
 
-    const filters = [
+    const baseFilters = [
         new fabric.Image.filters.Brightness({ brightness }),
         new fabric.Image.filters.Contrast({ contrast }),
         new fabric.Image.filters.Saturation({ saturation })
     ];
 
-    if (activeFilter) filters.push(activeFilter);
-
-    currentImage.filters = filters;
-    currentImage.applyFilters();
+    if (activeFilter) baseFilters.push(activeFilter);
+    
+    // Aplikovat filtry na obrázek
+    if (filterImage && currentImage) {
+        currentImage.filters = [...baseFilters];
+        currentImage.applyFilters();
+    } else if (currentImage) {
+        currentImage.filters = [];
+        currentImage.applyFilters();
+    }
+    
+    // Aplikovat/resetovat filtry na kresby
+    canvas.getObjects().forEach(obj => {
+        if (obj.layer === 'draw') {
+            if (filterDraw) {
+                applyFiltersToObject(obj, baseFilters, brightness, contrast, saturation);
+            } else {
+                resetObjectColors(obj);
+            }
+        }
+    });
+    
+    // Aplikovat/resetovat filtry na text
+    canvas.getObjects().forEach(obj => {
+        if (obj.layer === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+            if (filterText) {
+                applyFiltersToTextObject(obj, baseFilters, brightness, contrast, saturation);
+            } else {
+                resetTextObjectColors(obj);
+            }
+        }
+    });
+    
     canvas.requestRenderAll();
 }
+
+// Resetuje barvy objektu na původní
+function resetObjectColors(obj) {
+    if (!obj) return;
+    if (obj._originalStroke) {
+        obj.set({ stroke: obj._originalStroke });
+        delete obj._originalStroke;
+    }
+    if (obj._originalFill) {
+        obj.set({ fill: obj._originalFill });
+        delete obj._originalFill;
+    }
+}
+
+// Pomocná funkce pro aplikaci filtrů na jednotlivé objekty
+function applyFiltersToObject(obj, filters, brightness = 0, contrast = 0, saturation = 0) {
+    if (!obj) return;
+    
+    // Pro jednoduchost měníme pouze barvu podle filtrů
+    const hasGrayscale = filters.some(f => f && f.type === 'Grayscale');
+    const hasSepia = filters.some(f => f && f.type === 'Sepia');
+    const hasInvert = filters.some(f => f && f.type === 'Invert');
+    
+    // Uložit původní barvu pokud není uložena
+    if (!obj._originalStroke && obj.stroke) obj._originalStroke = obj.stroke;
+    if (!obj._originalFill && obj.fill) obj._originalFill = obj.fill;
+    
+    // Funkce pro aplikaci všech filtrů na barvu
+    const applyAllFilters = (color) => {
+        if (!color || color === 'transparent') return color;
+        let rgb = hexToRgb(color);
+        if (!rgb) return color;
+        
+        // Brightness (-1 to 1, přidává/ubírá hodnotu)
+        if (brightness !== 0) {
+            const b = Math.round(brightness * 255);
+            rgb.r = Math.max(0, Math.min(255, rgb.r + b));
+            rgb.g = Math.max(0, Math.min(255, rgb.g + b));
+            rgb.b = Math.max(0, Math.min(255, rgb.b + b));
+        }
+        
+        // Contrast (-1 to 1)
+        if (contrast !== 0) {
+            const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+            rgb.r = Math.max(0, Math.min(255, Math.round(factor * (rgb.r - 128) + 128)));
+            rgb.g = Math.max(0, Math.min(255, Math.round(factor * (rgb.g - 128) + 128)));
+            rgb.b = Math.max(0, Math.min(255, Math.round(factor * (rgb.b - 128) + 128)));
+        }
+        
+        // Saturation (-1 to 1)
+        if (saturation !== 0) {
+            const gray = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+            const sat = 1 + saturation;
+            rgb.r = Math.max(0, Math.min(255, Math.round(gray + sat * (rgb.r - gray))));
+            rgb.g = Math.max(0, Math.min(255, Math.round(gray + sat * (rgb.g - gray))));
+            rgb.b = Math.max(0, Math.min(255, Math.round(gray + sat * (rgb.b - gray))));
+        }
+        
+        // Grayscale
+        if (hasGrayscale) {
+            const gray = Math.round(0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b);
+            rgb = { r: gray, g: gray, b: gray };
+        }
+        
+        // Sepia
+        if (hasSepia) {
+            const r = Math.min(255, Math.round(0.393 * rgb.r + 0.769 * rgb.g + 0.189 * rgb.b));
+            const g = Math.min(255, Math.round(0.349 * rgb.r + 0.686 * rgb.g + 0.168 * rgb.b));
+            const b = Math.min(255, Math.round(0.272 * rgb.r + 0.534 * rgb.g + 0.131 * rgb.b));
+            rgb = { r, g, b };
+        }
+        
+        // Invert
+        if (hasInvert) {
+            rgb = { r: 255 - rgb.r, g: 255 - rgb.g, b: 255 - rgb.b };
+        }
+        
+        return rgbToHex(rgb.r, rgb.g, rgb.b);
+    };
+    
+    // Aplikovat filtry na stroke a fill
+    if (obj._originalStroke) {
+        obj.set({ stroke: applyAllFilters(obj._originalStroke) });
+    }
+    if (obj._originalFill && obj._originalFill !== 'transparent') {
+        obj.set({ fill: applyAllFilters(obj._originalFill) });
+    }
+}
+
+// Speciální funkce pro aplikaci filtrů na textové objekty
+function applyFiltersToTextObject(obj, filters, brightness = 0, contrast = 0, saturation = 0) {
+    if (!obj) return;
+    
+    const hasGrayscale = filters.some(f => f && f.type === 'Grayscale');
+    const hasSepia = filters.some(f => f && f.type === 'Sepia');
+    const hasInvert = filters.some(f => f && f.type === 'Invert');
+    
+    // Uložit původní barvu textu
+    if (!obj._originalFill && obj.fill) obj._originalFill = obj.fill;
+    
+    const applyAllFilters = (color) => {
+        if (!color || color === 'transparent') return color;
+        let rgb = hexToRgb(color);
+        if (!rgb) return color;
+        
+        if (brightness !== 0) {
+            const b = Math.round(brightness * 255);
+            rgb.r = Math.max(0, Math.min(255, rgb.r + b));
+            rgb.g = Math.max(0, Math.min(255, rgb.g + b));
+            rgb.b = Math.max(0, Math.min(255, rgb.b + b));
+        }
+        
+        if (contrast !== 0) {
+            const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+            rgb.r = Math.max(0, Math.min(255, Math.round(factor * (rgb.r - 128) + 128)));
+            rgb.g = Math.max(0, Math.min(255, Math.round(factor * (rgb.g - 128) + 128)));
+            rgb.b = Math.max(0, Math.min(255, Math.round(factor * (rgb.b - 128) + 128)));
+        }
+        
+        if (saturation !== 0) {
+            const gray = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+            const sat = 1 + saturation;
+            rgb.r = Math.max(0, Math.min(255, Math.round(gray + sat * (rgb.r - gray))));
+            rgb.g = Math.max(0, Math.min(255, Math.round(gray + sat * (rgb.g - gray))));
+            rgb.b = Math.max(0, Math.min(255, Math.round(gray + sat * (rgb.b - gray))));
+        }
+        
+        if (hasGrayscale) {
+            const gray = Math.round(0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b);
+            rgb = { r: gray, g: gray, b: gray };
+        }
+        
+        if (hasSepia) {
+            const r = Math.min(255, Math.round(0.393 * rgb.r + 0.769 * rgb.g + 0.189 * rgb.b));
+            const g = Math.min(255, Math.round(0.349 * rgb.r + 0.686 * rgb.g + 0.168 * rgb.b));
+            const b = Math.min(255, Math.round(0.272 * rgb.r + 0.534 * rgb.g + 0.131 * rgb.b));
+            rgb = { r, g, b };
+        }
+        
+        if (hasInvert) {
+            rgb = { r: 255 - rgb.r, g: 255 - rgb.g, b: 255 - rgb.b };
+        }
+        
+        return rgbToHex(rgb.r, rgb.g, rgb.b);
+    };
+    
+    // Aplikovat pouze na fill (barva textu)
+    if (obj._originalFill) {
+        obj.set({ fill: applyAllFilters(obj._originalFill) });
+        obj.dirty = true;
+    }
+}
+
+// Reset barev textového objektu
+function resetTextObjectColors(obj) {
+    if (!obj) return;
+    if (obj._originalFill) {
+        obj.set({ fill: obj._originalFill });
+        delete obj._originalFill;
+        obj.dirty = true;
+    }
+}
+
+// Pomocné funkce pro konverzi barev
+function toGrayscale(color) {
+    const rgb = hexToRgb(color);
+    if (!rgb) return color;
+    const gray = Math.round(0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b);
+    return rgbToHex(gray, gray, gray);
+}
+
+function invertColor(color) {
+    const rgb = hexToRgb(color);
+    if (!rgb) return color;
+    return rgbToHex(255 - rgb.r, 255 - rgb.g, 255 - rgb.b);
+}
+
+function toSepia(color) {
+    const rgb = hexToRgb(color);
+    if (!rgb) return color;
+    const r = Math.min(255, Math.round(0.393 * rgb.r + 0.769 * rgb.g + 0.189 * rgb.b));
+    const g = Math.min(255, Math.round(0.349 * rgb.r + 0.686 * rgb.g + 0.168 * rgb.b));
+    const b = Math.min(255, Math.round(0.272 * rgb.r + 0.534 * rgb.g + 0.131 * rgb.b));
+    return rgbToHex(r, g, b);
+}
+
+function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return null;
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length !== 6) return null;
+    return {
+        r: parseInt(hex.substr(0, 2), 16),
+        g: parseInt(hex.substr(2, 2), 16),
+        b: parseInt(hex.substr(4, 2), 16)
+    };
+}
+
+function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+// Generování dynamických náhledů filtrů z aktuálního obrázku
+function generateFilterPreviews() {
+    if (!currentImage || !currentImage._element) return;
+    
+    const sourceEl = currentImage._element;
+    const previewHeight = 60;
+    const aspectRatio = sourceEl.naturalWidth / sourceEl.naturalHeight;
+    const previewWidth = Math.round(previewHeight * aspectRatio);
+    
+    const filterTypes = {
+        'original': null,
+        'grayscale': new fabric.Image.filters.Grayscale(),
+        'sepia': new fabric.Image.filters.Sepia(),
+        'invert': new fabric.Image.filters.Invert(),
+        'blur': new fabric.Image.filters.Blur({ blur: 0.3 }),
+        'sharpen': new fabric.Image.filters.Convolute({ matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0] })
+    };
+    
+    document.querySelectorAll('.filter-thumb-wrap').forEach(wrap => {
+        const filterName = wrap.getAttribute('data-filter');
+        const previewCanvas = wrap.querySelector('.filter-preview-canvas');
+        if (!previewCanvas) return;
+        
+        previewCanvas.width = previewWidth;
+        previewCanvas.height = previewHeight;
+        
+        // Vytvořit dočasný fabric canvas pro náhled
+        const tempFabricImg = new fabric.Image(sourceEl, {
+            left: 0,
+            top: 0,
+            scaleX: previewWidth / sourceEl.naturalWidth,
+            scaleY: previewHeight / sourceEl.naturalHeight
+        });
+        
+        if (filterTypes[filterName]) {
+            tempFabricImg.filters = [filterTypes[filterName]];
+            tempFabricImg.applyFilters();
+        }
+        
+        const ctx = previewCanvas.getContext('2d');
+        ctx.clearRect(0, 0, previewWidth, previewHeight);
+        
+        // Render na canvas
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = previewWidth;
+        tempCanvas.height = previewHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempFabricImg.render(tempCtx);
+        ctx.drawImage(tempCanvas, 0, 0);
+    });
+}
+
+// Kliknutí na náhled filtru
+document.querySelectorAll('.filter-thumb-wrap').forEach(wrap => {
+    wrap.addEventListener('click', () => {
+        document.querySelectorAll('.filter-thumb-wrap').forEach(w => w.classList.remove('ring-2', 'ring-blue-500'));
+        wrap.classList.add('ring-2', 'ring-blue-500');
+
+        const type = wrap.getAttribute('data-filter');
+        switch(type){
+            case 'grayscale': activeFilter = new fabric.Image.filters.Grayscale(); break;
+            case 'sepia': activeFilter = new fabric.Image.filters.Sepia(); break;
+            case 'invert': activeFilter = new fabric.Image.filters.Invert(); break;
+            case 'blur': activeFilter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
+            case 'sharpen': activeFilter = new fabric.Image.filters.Convolute({ matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0] }); break;
+            default: activeFilter = null; break;
+        }
+
+        applyFilters();
+        scheduleFilterHistory();
+    });
+});
 
 document.querySelectorAll('.filter-thumb').forEach(thumb => {
     thumb.addEventListener('click', () => {
@@ -2456,6 +2935,11 @@ document.querySelectorAll('.filter-thumb').forEach(thumb => {
 
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
     input.addEventListener('input', applyFilters);
+});
+
+// Checkboxy pro vrstvy filtrů
+document.querySelectorAll('.filterLayerCheck').forEach(checkbox => {
+    checkbox.addEventListener('change', applyFilters);
 });
 
 // Posuvníky
@@ -2642,6 +3126,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         // Deaktivovat snap-line nástroj
         deactivateSnapLineTool();
         
+        // Vypnout endpoint controls na všech čárách
+        disableAllLineEndpoints();
+        
         // Skrýt kurzor gumy
         hideEraserCursor();
         canvas.defaultCursor = 'default';
@@ -2650,6 +3137,16 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         
         const drawToolbar = document.getElementById('drawFloatingToolbar');
         if (drawToolbar) drawToolbar.classList.add('hidden');
+        
+        // Skrýt text toolbar
+        const textTb = document.getElementById('textToolbar');
+        if (textTb) textTb.classList.add('hidden');
+        
+        // Skrýt kontextová menu
+        const ctxMenu = document.getElementById('contextMenu');
+        if (ctxMenu) ctxMenu.classList.add('hidden');
+        const textCtxMenu = document.getElementById('textContextMenu');
+        if (textCtxMenu) textCtxMenu.classList.add('hidden');
 
         // vypnout crop
         if (cropRect) {
@@ -2921,8 +3418,11 @@ function eraseAtPoint(pointer) {
                     stroke: obj.stroke,
                     strokeWidth: obj.strokeWidth,
                     fill: null,
-                    strokeLineCap: 'round',
-                    strokeLineJoin: 'round',
+                    // Zachovat původní styl čáry
+                    strokeLineCap: obj.strokeLineCap || 'round',
+                    strokeLineJoin: obj.strokeLineJoin || 'round',
+                    strokeDashArray: obj.strokeDashArray || null,
+                    strokeUniform: obj.strokeUniform !== undefined ? obj.strokeUniform : true,
                     selectable: false,
                     evented: false,
                     erasable: true,
@@ -3163,6 +3663,12 @@ canvas.on('selection:cleared', handleSelectionChange);
 
 function handleSelectionChange(e) {
     const activeObject = canvas.getActiveObject();
+    
+    // Vypnout endpoint controls pokud se vybere jiný objekt než čára
+    if (currentEditingLine && activeObject !== currentEditingLine) {
+        disableLineEndpointsControls(currentEditingLine);
+        currentEditingLine = null;
+    }
 
     if (activeObject && (activeObject.type === 'i-text' || activeObject.type === 'textbox')) {
         updateTextControlsUI(activeObject);
@@ -3467,6 +3973,23 @@ function updateStyleButtons() {
     document.getElementById('textLinethrough').classList.toggle('bg-pink-200', textStyles.linethrough);
 }
 
+// Aplikuje styly na vybraný text nebo celý objekt
+function applyStyleToSelectionOrAll(obj, styleProps) {
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+
+    const start = obj.selectionStart;
+    const end = obj.selectionEnd;
+
+    if (obj.isEditing && typeof start !== 'undefined' && start !== end) {
+        obj.setSelectionStyles(styleProps, start, end);
+    } else {
+        obj.set(styleProps);
+    }
+
+    obj.dirty = true;
+    canvas.requestRenderAll();
+}
+
 function toggleTextStyle(style) {
     const activeObject = canvas.getActiveObject();
     let currentState = textStyles[style];
@@ -3680,8 +4203,6 @@ function syncTextContextMenuFromObject(obj) {
         const colorEl = document.getElementById('ctxColor'); if (colorEl) colorEl.value = getFirstSelectionStyleValue(obj, 'fill') || obj.fill || '#000000';
     } catch (err) {}
 }
-
-let drawContextTarget = null;
 
 function showDrawFloatingAt(clientX, clientY, targetObj) {
     const el = document.getElementById('drawFloatingToolbar');
@@ -4052,22 +4573,6 @@ function hideTextToolbar() {
   textToolbar.classList.add('hidden');
 }
 
-function applyStyleToSelectionOrAll(obj, styleProps) {
-    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
-
-    const start = obj.selectionStart;
-    const end = obj.selectionEnd;
-
-    if (obj.isEditing && typeof start !== 'undefined' && start !== end) {
-        obj.setSelectionStyles(styleProps, start, end);
-    } else {
-        obj.set(styleProps);
-    }
-
-    obj.dirty = true;
-    canvas.requestRenderAll();
-}
-
 function getFirstSelectionStyleValue(obj, prop) {
     if (!obj) return null;
     if (obj.isEditing) {
@@ -4092,21 +4597,119 @@ function syncTextToolbarFromObject(obj) {
     // Bold
     const weight = getFirstSelectionStyleValue(obj, 'fontWeight') || obj.fontWeight;
     document.getElementById('textBold').classList.toggle('bg-gray-200', weight === 'bold');
+    document.getElementById('tbBold')?.classList.toggle('bg-gray-200', weight === 'bold');
     // Italic
     const style = getFirstSelectionStyleValue(obj, 'fontStyle') || obj.fontStyle;
     document.getElementById('textItalic').classList.toggle('bg-gray-200', style === 'italic');
+    document.getElementById('tbItalic')?.classList.toggle('bg-gray-200', style === 'italic');
     // Underline
     const underline = getFirstSelectionStyleValue(obj, 'underline');
     document.getElementById('textUnderline').classList.toggle('bg-gray-200', !!underline);
+    document.getElementById('tbUnderline')?.classList.toggle('bg-gray-200', !!underline);
     // Linethrough
     const linethrough = getFirstSelectionStyleValue(obj, 'linethrough');
     document.getElementById('textLinethrough').classList.toggle('bg-gray-200', !!linethrough);
+    document.getElementById('tbLinethrough')?.classList.toggle('bg-gray-200', !!linethrough);
     // Color
     const color = getFirstSelectionStyleValue(obj, 'fill') || obj.fill || '#000000';
     document.getElementById('textToolbarColor').value = color;
     // Font size
-    document.getElementById('textSize').value = obj.fontSize || 32;
+    const fontSize = obj.fontSize || 32;
+    document.getElementById('textSize').value = fontSize;
+    const tbSizeVal = document.getElementById('tbSizeVal');
+    if (tbSizeVal) tbSizeVal.textContent = fontSize;
 }
+
+// Event handlery pro floating text toolbar
+document.addEventListener('DOMContentLoaded', () => {
+    const tbBold = document.getElementById('tbBold');
+    const tbItalic = document.getElementById('tbItalic');
+    const tbUnderline = document.getElementById('tbUnderline');
+    const tbLinethrough = document.getElementById('tbLinethrough');
+    const tbSizeMinus = document.getElementById('tbSizeMinus');
+    const tbSizePlus = document.getElementById('tbSizePlus');
+    const tbAlignLeft = document.getElementById('tbAlignLeft');
+    const tbAlignCenter = document.getElementById('tbAlignCenter');
+    const tbAlignRight = document.getElementById('tbAlignRight');
+    
+    if (tbBold) tbBold.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleTextStyle('bold');
+    });
+    if (tbItalic) tbItalic.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleTextStyle('italic');
+    });
+    if (tbUnderline) tbUnderline.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleTextStyle('underline');
+    });
+    if (tbLinethrough) tbLinethrough.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleTextStyle('linethrough');
+    });
+    
+    if (tbSizeMinus) tbSizeMinus.addEventListener('click', (e) => {
+        e.preventDefault();
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+        const newSize = Math.max(8, (obj.fontSize || 32) - 2);
+        obj.set({ fontSize: newSize });
+        canvas.requestRenderAll();
+        syncTextToolbarFromObject(obj);
+        scheduleTextHistory();
+    });
+    
+    if (tbSizePlus) tbSizePlus.addEventListener('click', (e) => {
+        e.preventDefault();
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+        const newSize = Math.min(200, (obj.fontSize || 32) + 2);
+        obj.set({ fontSize: newSize });
+        canvas.requestRenderAll();
+        syncTextToolbarFromObject(obj);
+        scheduleTextHistory();
+    });
+    
+    // Align handlers v DOMContentLoaded
+    if (tbAlignLeft) tbAlignLeft.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+        obj.set({ textAlign: 'left' });
+        obj.dirty = true;
+        canvas.requestRenderAll();
+        scheduleTextHistory();
+    });
+    
+    if (tbAlignCenter) tbAlignCenter.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+        obj.set({ textAlign: 'center' });
+        obj.dirty = true;
+        canvas.requestRenderAll();
+        scheduleTextHistory();
+    });
+    
+    if (tbAlignRight) tbAlignRight.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const obj = canvas.getActiveObject();
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+        obj.set({ textAlign: 'right' });
+        obj.dirty = true;
+        canvas.requestRenderAll();
+        scheduleTextHistory();
+    });
+    
+});
 
 canvas.on('selection:created', () => {
   const obj = canvas.getActiveObject();
@@ -4133,34 +4736,6 @@ canvas.on('object:moving', () => {
   if (obj && (obj.type === 'i-text' || obj.type === 'textbox')) {
     showTextToolbar(obj);
   }
-});
-
-document.querySelectorAll('#textToolbar button[data-style]').forEach(btn => {
-    btn.onclick = () => {
-        const obj = canvas.getActiveObject();
-        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
-
-        const style = btn.dataset.style;
-        const props = {};
-        if (style === 'bold') props.fontWeight = (getFirstSelectionStyleValue(obj, 'fontWeight') === 'bold' || obj.fontWeight === 'bold') ? 'normal' : 'bold';
-        if (style === 'italic') props.fontStyle = (getFirstSelectionStyleValue(obj, 'fontStyle') === 'italic' || obj.fontStyle === 'italic') ? 'normal' : 'italic';
-        if (style === 'underline') props.underline = !(getFirstSelectionStyleValue(obj, 'underline') || obj.underline);
-        if (style === 'linethrough') props.linethrough = !(getFirstSelectionStyleValue(obj, 'linethrough') || obj.linethrough);
-
-        applyStyleToSelectionOrAll(obj, props);
-        scheduleTextHistory();
-        syncTextToolbarFromObject(obj);
-    };
-});
-
-document.querySelectorAll('#textToolbar button[data-align]').forEach(btn => {
-    btn.onclick = () => {
-        const obj = canvas.getActiveObject();
-        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
-
-        obj.textAlign = btn.dataset.align;
-        canvas.requestRenderAll();
-    };
 });
 
 document.getElementById('textToolbarColor').oninput = (e) => {

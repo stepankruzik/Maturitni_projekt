@@ -5,6 +5,7 @@
 </head>
 <body class="h-full">
     <div class="min-h-full">
+        @if(!isset($hideNav) || !$hideNav)
         <nav class="bg-gray-800 p-4 text-white">
             <div class="flex space-x-4">
                 <a href="{{ route('home') }}" class="hover:underline">Home</a>
@@ -16,8 +17,9 @@
                 <h1 class="text-2xl font-bold text-gray-900">{{ $heading ?? '' }}</h1>
             </div>
         </header>
+        @endif
 
-        <main class="max-w-7xl mx-auto py-6 px-4">
+        <main class="@if(!isset($hideNav) || !$hideNav) max-w-7xl mx-auto py-6 px-4 @endif">
             {{ $slot }}
         </main>
     </div>
