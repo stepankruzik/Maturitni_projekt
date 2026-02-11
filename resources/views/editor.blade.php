@@ -21,6 +21,15 @@
         <button class="tab-btn px-3 py-1 bg-red-500 text-white rounded" data-target="panelLevels">Úrovně</button>
         <button class="tab-btn px-3 py-1 bg-indigo-500 text-white rounded" data-target="panelDraw">Kreslení</button>
         <button class="tab-btn px-3 py-1 bg-pink-500 text-white rounded" data-target="panelText">Text</button>
+        <button id="addImageBtn" class="px-3 py-1 bg-cyan-500 text-white rounded hover:bg-cyan-600 transition flex items-center gap-1" title="Přidat obrázek">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            Obrázek
+        </button>
+        <input type="file" id="addImageInput" accept="image/*" class="hidden">
     </div>
 
     <div class="flex h-screen">
@@ -28,8 +37,7 @@
     <div class="w-72 bg-gray-100 border-r border-gray-300 p-4 overflow-y-auto">
         <h2 class="text-lg font-semibold mb-4">Úpravy obrázku</h2>
 
-    <button id="addImageBtn" class="w-full mb-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Přidat další obrázek</button>
-    <input type="file" id="addImageInput" accept="image/*" class="hidden">
+
 
         <p id="imageSize" class="text-gray-600 font-semibold mb-1"></p>
         <p id="rotationAngle" class="text-gray-600 font-semibold mb-3"></p>
@@ -581,6 +589,46 @@
             <div class="flex items-center gap-1 border-r border-gray-200 pr-2">
                 <input type="color" id="textToolbarColor" class="w-7 h-7 rounded cursor-pointer border-0" title="Barva textu">
             </div>
+            <!-- Font -->
+            <div class="flex items-center gap-1 border-r border-gray-200 pr-2">
+                <select id="tbFont" class="text-xs px-2 py-1 rounded border border-gray-300 focus:border-pink-400 cursor-pointer max-w-[120px]" title="Font">
+                    <optgroup label="Bezpatkové">
+                        <option value="Arial">Arial</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Tahoma">Tahoma</option>
+                        <option value="Trebuchet MS">Trebuchet MS</option>
+                        <option value="Segoe UI">Segoe UI</option>
+                        <option value="Open Sans">Open Sans</option>
+                        <option value="Roboto">Roboto</option>
+                        <option value="Lato">Lato</option>
+                        <option value="Montserrat">Montserrat</option>
+                    </optgroup>
+                    <optgroup label="Patkové">
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Palatino Linotype">Palatino Linotype</option>
+                        <option value="Book Antiqua">Book Antiqua</option>
+                        <option value="Garamond">Garamond</option>
+                        <option value="Playfair Display">Playfair Display</option>
+                    </optgroup>
+                    <optgroup label="Neproporcionální">
+                        <option value="Courier New">Courier New</option>
+                        <option value="Consolas">Consolas</option>
+                        <option value="Monaco">Monaco</option>
+                        <option value="Lucida Console">Lucida Console</option>
+                        <option value="Source Code Pro">Source Code Pro</option>
+                    </optgroup>
+                    <optgroup label="Rukopisné">
+                        <option value="Comic Sans MS">Comic Sans MS</option>
+                        <option value="Brush Script MT">Brush Script MT</option>
+                    </optgroup>
+                    <optgroup label="Dekorativní">
+                        <option value="Impact">Impact</option>
+                        <option value="Oswald">Oswald</option>
+                        <option value="Lobster">Lobster</option>
+                    </optgroup>
+                </select>
+            </div>
             <!-- Velikost -->
             <div class="flex items-center gap-1 border-r border-gray-200 pr-2">
                 <button id="tbSizeMinus" class="w-6 h-6 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zmenšit">−</button>
@@ -589,39 +637,86 @@
             </div>
             <!-- Zarovnání -->
             <div class="flex gap-1 border-r border-gray-200 pr-2">
-                <button id="tbAlignLeft" data-align="left" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zarovnat vlevo">⬅</button>
-                <button id="tbAlignCenter" data-align="center" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Na střed">⬌</button>
-                <button id="tbAlignRight" data-align="right" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 text-sm transition" title="Zarovnat vpravo">➡</button>
+                <button id="tbAlignLeft" data-align="left" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 transition flex items-center justify-center" title="Zarovnat vlevo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="15" y2="12"/>
+                        <line x1="3" y1="18" x2="18" y2="18"/>
+                    </svg>
+                </button>
+                <button id="tbAlignCenter" data-align="center" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 transition flex items-center justify-center" title="Na střed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="6" y1="12" x2="18" y2="12"/>
+                        <line x1="4" y1="18" x2="20" y2="18"/>
+                    </svg>
+                </button>
+                <button id="tbAlignRight" data-align="right" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 transition flex items-center justify-center" title="Zarovnat vpravo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="9" y1="12" x2="21" y2="12"/>
+                        <line x1="6" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
             </div>
             <!-- Smazat -->
-            <button id="deleteTextBtn" class="w-7 h-7 rounded hover:bg-red-100 active:bg-red-200 text-red-600 transition" title="Smazat text">🗑</button>
+            <button id="deleteTextBtn" class="w-7 h-7 rounded hover:bg-red-100 active:bg-red-200 text-red-600 transition flex items-center justify-center" title="Smazat text">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+                </svg>
+            </button>
         </div>
         <!-- Kontekstové menu pro text -->
-        <div id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
-            <div class="p-2 border-b grid grid-cols-3 gap-1">
-                <button id="ctxBold" class="px-2 py-1 text-sm">B</button>
-                <button id="ctxItalic" class="px-2 py-1 text-sm">I</button>
-                <button id="ctxUnderline" class="px-2 py-1 text-sm">U</button>
-            </div>
-            <div class="p-2 border-b flex items-center gap-2">
-                <label class="text-xs">Barva:</label>
-                <input id="ctxColor" type="color" class="h-6 w-8 p-0">
-            </div>
-            <div class="p-2 border-b flex items-center justify-between">
-                <div class="flex gap-1">
-                    <button id="ctxAlignLeft" class="px-2 py-1 text-sm">⬅</button>
-                    <button id="ctxAlignCenter" class="px-2 py-1 text-sm">⬌</button>
-                    <button id="ctxAlignRight" class="px-2 py-1 text-sm">➡</button>
-                </div>
-                <div class="flex items-center gap-1">
-                    <button id="ctxSizeMinus" class="px-2 py-1 text-sm">-</button>
-                    <span id="ctxSizeVal" class="text-xs">32</span>
-                    <button id="ctxSizePlus" class="px-2 py-1 text-sm">+</button>
-                </div>
-            </div>
-            <div class="p-2">
-                <button id="ctxDeleteText" class="w-full text-left text-red-600 px-2 py-1">Smazat text</button>
-            </div>
+        <div id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="bringForward">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                </svg>
+                Dopředu
+            </button>
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="sendBackward">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+                Dozadu
+            </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="bringToFront">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                    <path d="M5 5h14"/>
+                </svg>
+                Na vrch
+            </button>
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="sendToBack">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                    <path d="M5 19h14"/>
+                </svg>
+                Na spodek
+            </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="copy">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+                Kopírovat
+            </button>
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="paste">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                </svg>
+                Vložit
+            </button>
+            <div class="border-t border-gray-200 my-1"></div>
+            <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 flex items-center gap-2" data-action="delete">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+                </svg>
+                Smazat
+            </button>
         </div>
         <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
         
@@ -654,6 +749,7 @@
                 </svg>
                 Na spodek
             </button>
+            <div class="border-t border-gray-200 my-1"></div>
             <div class="border-t border-gray-200 my-1"></div>
             <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 flex items-center gap-2" data-action="delete">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2826,6 +2922,28 @@ function toSepia(color) {
 
 function hexToRgb(hex) {
     if (!hex || typeof hex !== 'string') return null;
+    
+    // Handle rgb()/rgba() format
+    const rgbMatch = hex.match(/^rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (rgbMatch) {
+        return {
+            r: parseInt(rgbMatch[1], 10),
+            g: parseInt(rgbMatch[2], 10),
+            b: parseInt(rgbMatch[3], 10)
+        };
+    }
+    
+    // Handle named colors
+    const namedColors = {
+        'black': '#000000', 'white': '#ffffff', 'red': '#ff0000', 'green': '#008000',
+        'blue': '#0000ff', 'yellow': '#ffff00', 'cyan': '#00ffff', 'magenta': '#ff00ff',
+        'gray': '#808080', 'grey': '#808080', 'orange': '#ffa500', 'pink': '#ffc0cb',
+        'purple': '#800080', 'brown': '#a52a2a', 'navy': '#000080', 'teal': '#008080'
+    };
+    if (namedColors[hex.toLowerCase()]) {
+        hex = namedColors[hex.toLowerCase()];
+    }
+    
     hex = hex.replace('#', '');
     if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
     if (hex.length !== 6) return null;
@@ -4146,17 +4264,25 @@ canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
 
         if (target.type === 'i-text' || target.type === 'textbox') {
             const menu = document.getElementById('textContextMenu');
-            menu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
-            menu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+            // Nejprve zobrazit pro změření výšky
+            menu.style.visibility = 'hidden';
             menu.classList.remove('hidden');
-            try { syncTextContextMenuFromObject(target); } catch (err) {}
-            const sizeEl = document.getElementById('ctxSizeVal'); if (sizeEl) sizeEl.textContent = target.fontSize || 32;
-            const colorEl = document.getElementById('ctxColor'); if (colorEl) colorEl.value = target.fill || '#000000';
+            const menuHeight = menu.offsetHeight;
+            menu.style.visibility = '';
+            
+            // Pozice - menu se otevírá nahoru (nad kurzor)
+            const posX = e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft;
+            const posY = e.clientY - rect.top + canvas.upperCanvasEl.offsetTop - menuHeight;
+            
+            menu.style.left = posX + 'px';
+            menu.style.top = Math.max(0, posY) + 'px';
         } 
-        else if (target.layer === 'draw') {
+        else if (target.layer === 'draw' || (target.type === 'activeSelection' && target.getObjects().some(o => o.layer === 'draw'))) {
             contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
             contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
             contextMenu.classList.remove('hidden');
+            // Sync hodnoty pro styl čáry
+            try { syncDrawContextMenuFromObject(target); } catch (err) {}
         }
     } else {
         hideContextMenu();
@@ -4165,7 +4291,8 @@ canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
 
 // Skrytí menu při kliknutí jinam
 document.addEventListener('click', function(e) {
-    if (!contextMenu.contains(e.target)) {
+    const textCtxMenu = document.getElementById('textContextMenu');
+    if (!contextMenu.contains(e.target) && (!textCtxMenu || !textCtxMenu.contains(e.target))) {
         hideContextMenu();
     }
 });
@@ -4192,15 +4319,44 @@ function hideContextMenu() {
 }
 
 function syncTextContextMenuFromObject(obj) {
+    // Text context menu now only has layer actions, no need to sync styling
+}
+
+function syncDrawContextMenuFromObject(obj) {
     if (!obj) return;
     try {
-        const boldActive = (getFirstSelectionStyleValue(obj, 'fontWeight') === 'bold') || obj.fontWeight === 'bold';
-        const italicActive = (getFirstSelectionStyleValue(obj, 'fontStyle') === 'italic') || obj.fontStyle === 'italic';
-        const underlineActive = (getFirstSelectionStyleValue(obj, 'underline') === true) || obj.underline === true;
-        document.getElementById('ctxBold').classList.toggle('bg-gray-200', boldActive);
-        document.getElementById('ctxItalic').classList.toggle('bg-gray-200', italicActive);
-        document.getElementById('ctxUnderline').classList.toggle('bg-gray-200', underlineActive);
-        const colorEl = document.getElementById('ctxColor'); if (colorEl) colorEl.value = getFirstSelectionStyleValue(obj, 'fill') || obj.fill || '#000000';
+        // Pro multi-selection použij první draw objekt
+        let targetObj = obj;
+        if (obj.type === 'activeSelection') {
+            targetObj = obj.getObjects().find(o => o.layer === 'draw') || obj.getObjects()[0];
+        }
+        
+        const strokeColorEl = document.getElementById('ctxDrawStrokeColor');
+        const fillColorEl = document.getElementById('ctxDrawFillColor');
+        const fillTransparentEl = document.getElementById('ctxDrawFillTransparent');
+        const strokeWidthEl = document.getElementById('ctxDrawStrokeWidth');
+        const strokeStyleEl = document.getElementById('ctxDrawStrokeStyle');
+        
+        if (strokeColorEl && targetObj.stroke) strokeColorEl.value = targetObj.stroke;
+        if (fillColorEl) {
+            if (targetObj.fill && targetObj.fill !== 'transparent') {
+                fillColorEl.value = targetObj.fill;
+                if (fillTransparentEl) fillTransparentEl.checked = false;
+            } else {
+                if (fillTransparentEl) fillTransparentEl.checked = true;
+            }
+        }
+        if (strokeWidthEl) strokeWidthEl.value = targetObj.strokeWidth || 1;
+        if (strokeStyleEl) {
+            const dash = targetObj.strokeDashArray;
+            if (!dash || dash.length === 0) {
+                strokeStyleEl.value = 'solid';
+            } else if (dash[0] > dash[1]) {
+                strokeStyleEl.value = 'dashed';
+            } else {
+                strokeStyleEl.value = 'dotted';
+            }
+        }
     } catch (err) {}
 }
 
@@ -4244,48 +4400,55 @@ function hideDrawFloatingToolbar() {
 
 const textContextMenu = document.getElementById('textContextMenu');
 if (textContextMenu) {
-    document.getElementById('ctxBold').addEventListener('click', () => {
-        const obj = canvas.getActiveObject();
-        if (!obj) return;
-        const val = (getFirstSelectionStyleValue(obj, 'fontWeight') === 'bold' || obj.fontWeight === 'bold') ? 'normal' : 'bold';
-        applyStyleToSelectionOrAll(obj, { fontWeight: val });
-        scheduleTextHistory();
-        syncTextToolbarFromObject(obj);
-        hideContextMenu();
+    // Event handlery pro textové kontextové menu (layer actions)
+    document.querySelectorAll('.text-context-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const target = canvas.getActiveObject();
+            if (!target) return;
+            
+            const action = this.dataset.action;
+            
+            switch(action) {
+                case 'bringForward':
+                    canvas.bringForward(target);
+                    break;
+                case 'sendBackward':
+                    canvas.sendBackwards(target);
+                    break;
+                case 'bringToFront':
+                    canvas.bringToFront(target);
+                    break;
+                case 'sendToBack':
+                    canvas.sendToBack(target);
+                    break;
+                case 'delete':
+                    canvas.remove(target);
+                    break;
+                case 'copy':
+                    target.clone(function(cloned) {
+                        clipboard = cloned;
+                    });
+                    break;
+                case 'paste':
+                    pasteObject();
+                    break;
+            }
+            
+            canvas.requestRenderAll();
+            hideContextMenu();
+        });
     });
-
-    document.getElementById('ctxItalic').addEventListener('click', () => {
-        const obj = canvas.getActiveObject();
-        if (!obj) return;
-        const val = (getFirstSelectionStyleValue(obj, 'fontStyle') === 'italic' || obj.fontStyle === 'italic') ? 'normal' : 'italic';
-        applyStyleToSelectionOrAll(obj, { fontStyle: val });
-        scheduleTextHistory();
-        syncTextToolbarFromObject(obj);
-        hideContextMenu();
-    });
-
-    document.getElementById('ctxUnderline').addEventListener('click', () => {
-        const obj = canvas.getActiveObject(); if (!obj) return;
-        const val = !(getFirstSelectionStyleValue(obj, 'underline') || obj.underline);
-        applyStyleToSelectionOrAll(obj, { underline: val });
-        scheduleTextHistory(); syncTextToolbarFromObject(obj); hideContextMenu();
-    });
-
-    document.getElementById('ctxColor').addEventListener('input', (e) => {
-        const obj = canvas.getActiveObject(); if (!obj) return;
-        applyStyleToSelectionOrAll(obj, { fill: e.target.value });
-        scheduleTextHistory(); syncTextToolbarFromObject(obj);
-    });
-
-    document.getElementById('ctxAlignLeft').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; applyToActiveText({ textAlign: 'left' }); hideContextMenu(); });
-    document.getElementById('ctxAlignCenter').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; applyToActiveText({ textAlign: 'center' }); hideContextMenu(); });
-    document.getElementById('ctxAlignRight').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; applyToActiveText({ textAlign: 'right' }); hideContextMenu(); });
-
-    document.getElementById('ctxSizeMinus').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; const newSize = Math.max(6, (obj.fontSize || 32) - 1); applyStyleToSelectionOrAll(obj, { fontSize: newSize }); document.getElementById('ctxSizeVal').textContent = newSize; scheduleTextHistory(); });
-    document.getElementById('ctxSizePlus').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (!obj) return; const newSize = (obj.fontSize || 32) + 1; applyStyleToSelectionOrAll(obj, { fontSize: newSize }); document.getElementById('ctxSizeVal').textContent = newSize; scheduleTextHistory(); });
-
-    document.getElementById('ctxDeleteText').addEventListener('click', () => { const obj = canvas.getActiveObject(); if (obj) { canvas.remove(obj); } hideContextMenu(); });
 }
+
+// Event handler pro font picker v text toolbaru
+document.getElementById('tbFont')?.addEventListener('change', (e) => {
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    applyToActiveText({ fontFamily: e.target.value });
+    setFontPickerValue(e.target.value);
+    scheduleTextHistory();
+    syncTextToolbarFromObject(obj);
+});
 
 // Clipboard pro kopírování/vkládání
 let clipboard = null;
@@ -4391,6 +4554,66 @@ document.querySelectorAll('.context-btn').forEach(btn => {
         hideContextMenu();
     });
 });
+
+// Event handlery pro styl čáry v kontextovém menu
+document.getElementById('ctxDrawStrokeColor')?.addEventListener('input', (e) => {
+    if (!contextTarget) return;
+    applyToContextDrawTarget({ stroke: e.target.value });
+});
+
+document.getElementById('ctxDrawFillColor')?.addEventListener('input', (e) => {
+    if (!contextTarget) return;
+    document.getElementById('ctxDrawFillTransparent').checked = false;
+    applyToContextDrawTarget({ fill: e.target.value });
+});
+
+document.getElementById('ctxDrawFillTransparent')?.addEventListener('change', (e) => {
+    if (!contextTarget) return;
+    const fillVal = e.target.checked ? 'transparent' : (document.getElementById('ctxDrawFillColor')?.value || '#ffffff');
+    applyToContextDrawTarget({ fill: fillVal });
+});
+
+document.getElementById('ctxDrawStrokeWidth')?.addEventListener('input', (e) => {
+    if (!contextTarget) return;
+    applyToContextDrawTarget({ strokeWidth: parseInt(e.target.value, 10) || 1 });
+});
+
+document.getElementById('ctxDrawStrokeStyle')?.addEventListener('change', (e) => {
+    if (!contextTarget) return;
+    const v = e.target.value;
+    const widthVal = parseInt(document.getElementById('ctxDrawStrokeWidth')?.value, 10) || 1;
+    let dash = null;
+    if (v === 'dashed') dash = [widthVal * 2, widthVal];
+    if (v === 'dotted') dash = [widthVal, widthVal * 1.5];
+    applyToContextDrawTarget({ strokeDashArray: dash });
+});
+
+function applyToContextDrawTarget(props) {
+    if (!contextTarget) return;
+    
+    function applyPropsRecursive(obj) {
+        if (!obj) return;
+        obj.set(props);
+        obj.dirty = true;
+        if (obj._objects && obj._objects.length) {
+            obj._objects.forEach(child => applyPropsRecursive(child));
+        }
+    }
+    
+    if (contextTarget.type === 'activeSelection') {
+        contextTarget.getObjects().forEach(obj => {
+            if (obj.layer === 'draw' || obj.type === 'path' || obj.type === 'group' || obj.type === 'line') {
+                applyPropsRecursive(obj);
+            }
+        });
+    } else {
+        applyPropsRecursive(contextTarget);
+    }
+    
+    if (contextTarget.setCoords) contextTarget.setCoords();
+    canvas.requestRenderAll();
+    saveHistoryState('draw-style');
+}
 
 document.getElementById('undoBtn')?.addEventListener('click', undo);
 document.getElementById('redoBtn')?.addEventListener('click', redo);
@@ -4618,6 +4841,11 @@ function syncTextToolbarFromObject(obj) {
     document.getElementById('textSize').value = fontSize;
     const tbSizeVal = document.getElementById('tbSizeVal');
     if (tbSizeVal) tbSizeVal.textContent = fontSize;
+    // Font family
+    const fontFamily = obj.fontFamily || 'Arial';
+    const tbFontEl = document.getElementById('tbFont');
+    if (tbFontEl) tbFontEl.value = fontFamily;
+    setFontPickerValue(fontFamily);
 }
 
 // Event handlery pro floating text toolbar
