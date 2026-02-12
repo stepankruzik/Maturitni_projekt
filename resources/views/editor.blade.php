@@ -2701,14 +2701,18 @@ function applyFilters() {
 
     if (activeFilter) baseFilters.push(activeFilter);
     
-    // Aplikovat filtry na obrázek
-    if (filterImage && currentImage) {
-        currentImage.filters = [...baseFilters];
-        currentImage.applyFilters();
-    } else if (currentImage) {
-        currentImage.filters = [];
-        currentImage.applyFilters();
-    }
+    // Aplikovat filtry na obrázky (včetně přidaných)
+    canvas.getObjects().forEach(obj => {
+        if (obj === currentImage || obj.layer === 'image') {
+            if (filterImage && obj.type === 'image') {
+                obj.filters = [...baseFilters];
+                obj.applyFilters();
+            } else if (obj.type === 'image') {
+                obj.filters = [];
+                obj.applyFilters();
+            }
+        }
+    });
     
     // Aplikovat/resetovat filtry na kresby
     canvas.getObjects().forEach(obj => {
@@ -4277,7 +4281,7 @@ canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
             menu.style.left = posX + 'px';
             menu.style.top = Math.max(0, posY) + 'px';
         } 
-        else if (target.layer === 'draw' || (target.type === 'activeSelection' && target.getObjects().some(o => o.layer === 'draw'))) {
+        else if (target.layer === 'draw' || target.layer === 'image' || (target.type === 'activeSelection' && target.getObjects().some(o => o.layer === 'draw' || o.layer === 'image'))) {
             contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
             contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
             contextMenu.classList.remove('hidden');
@@ -4426,8 +4430,12 @@ if (textContextMenu) {
                     break;
                 case 'copy':
                     target.clone(function(cloned) {
+                        cloned.layer = target.layer;
+                        cloned.erasable = target.erasable;
+                        cloned._originalStroke = target._originalStroke;
+                        cloned._originalFill = target._originalFill;
                         clipboard = cloned;
-                    });
+                    }, HISTORY.extraProps);
                     break;
                 case 'paste':
                     pasteObject();
@@ -4458,8 +4466,13 @@ function copyObject() {
     if (!obj || obj === currentImage) return;
     
     obj.clone(function(cloned) {
+        // Preserve custom properties
+        cloned.layer = obj.layer;
+        cloned.erasable = obj.erasable;
+        cloned._originalStroke = obj._originalStroke;
+        cloned._originalFill = obj._originalFill;
         clipboard = cloned;
-    });
+    }, HISTORY.extraProps);
 }
 
 function pasteObject() {
@@ -4467,6 +4480,12 @@ function pasteObject() {
     
     clipboard.clone(function(clonedObj) {
         canvas.discardActiveObject();
+        
+        // Preserve custom properties from clipboard
+        clonedObj.layer = clipboard.layer;
+        clonedObj.erasable = clipboard.erasable;
+        clonedObj._originalStroke = clipboard._originalStroke;
+        clonedObj._originalFill = clipboard._originalFill;
         
         clonedObj.set({
             left: clonedObj.left + 20,
@@ -4477,7 +4496,14 @@ function pasteObject() {
         
         if (clonedObj.type === 'activeSelection') {
             clonedObj.canvas = canvas;
-            clonedObj.forEachObject(function(obj) {
+            clonedObj.forEachObject(function(obj, i) {
+                // Copy layer from original objects if available
+                if (clipboard._objects && clipboard._objects[i]) {
+                    obj.layer = clipboard._objects[i].layer;
+                    obj.erasable = clipboard._objects[i].erasable;
+                    obj._originalStroke = clipboard._objects[i]._originalStroke;
+                    obj._originalFill = clipboard._objects[i]._originalFill;
+                }
                 canvas.add(obj);
             });
             clonedObj.setCoords();
@@ -4489,7 +4515,10 @@ function pasteObject() {
         clipboard.left += 20;
         canvas.setActiveObject(clonedObj);
         canvas.requestRenderAll();
-    });
+        saveHistoryState('paste');
+        // Reapply filters to include pasted object
+        applyFilters();
+    }, HISTORY.extraProps);
 }
 
 // Klávesové zkratky Ctrl+C a Ctrl+V
@@ -4541,8 +4570,12 @@ document.querySelectorAll('.context-btn').forEach(btn => {
             case 'copy':
                 if (contextTarget !== currentImage) {
                     contextTarget.clone(function(cloned) {
+                        cloned.layer = contextTarget.layer;
+                        cloned.erasable = contextTarget.erasable;
+                        cloned._originalStroke = contextTarget._originalStroke;
+                        cloned._originalFill = contextTarget._originalFill;
                         clipboard = cloned;
-                    });
+                    }, HISTORY.extraProps);
                 }
                 break;
             case 'paste':
@@ -4695,6 +4728,8 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
             canvas.setActiveObject(img);
             canvas.requestRenderAll();
             saveHistoryState('add-image');
+            // Apply current filters to added image
+            applyFilters();
         }, { crossOrigin: 'anonymous' });
     };
     reader.readAsDataURL(file);
