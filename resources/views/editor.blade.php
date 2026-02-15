@@ -71,29 +71,29 @@
                 </label>
             </div>
         </div>
-        <div id="filterPreview" class="flex flex-wrap gap-2 mt-2">
+        <div id="filterPreview" class="grid grid-cols-2 gap-2 mt-2">
             <div class="filter-thumb-wrap" data-filter="original">
-                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
                 <span class="text-xs block text-center">Originál</span>
             </div>
             <div class="filter-thumb-wrap" data-filter="grayscale">
-                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
                 <span class="text-xs block text-center">Šedá</span>
             </div>
             <div class="filter-thumb-wrap" data-filter="sepia">
-                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
                 <span class="text-xs block text-center">Sépie</span>
             </div>
             <div class="filter-thumb-wrap" data-filter="invert">
-                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
                 <span class="text-xs block text-center">Inverze</span>
             </div>
             <div class="filter-thumb-wrap" data-filter="blur">
-                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
                 <span class="text-xs block text-center">Rozostření</span>
             </div>
             <div class="filter-thumb-wrap" data-filter="sharpen">
-                <canvas class="filter-preview-canvas" width="80" height="60"></canvas>
+                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
                 <span class="text-xs block text-center">Zaostření</span>
             </div>
         </div>
@@ -1000,21 +1000,102 @@ function setLineByCanvasPoints(lineObj, p1, p2) {
 
 // Najde nejbližší snap bod (koncový bod existující čáry)
 function findSnapPoint(pointer) {
-    const lines = canvas.getObjects().filter(o => o.type === 'line' && o.layer === 'draw' && o !== snapCurrentLine);
+    const objects = canvas.getObjects().filter(o => o.layer === 'draw' && o !== snapCurrentLine);
     let closest = null;
     let minDist = SNAP_RADIUS;
-    
-    for (const lineObj of lines) {
-        for (const which of ['p1', 'p2']) {
-            const pos = getLineEndpointCanvasPos(lineObj, which);
+
+    for (const obj of objects) {
+        let snapPoints = [];
+
+        // Čáry - 2 koncové body
+        if (obj.type === 'line') {
+            for (const which of ['p1', 'p2']) {
+                const pos = getLineEndpointCanvasPos(obj, which);
+                snapPoints.push(pos);
+            }
+        }
+        // Kruhy - 4 body (nahoře, vpravo, dole, vlevo)
+        else if (obj.type === 'circle') {
+            const center = obj.getCenterPoint();
+            const radius = obj.radius * obj.scaleX;
+            const angle = obj.angle * Math.PI / 180;
+
+            for (let i = 0; i < 4; i++) {
+                const a = angle + (i * Math.PI / 2);
+                snapPoints.push({
+                    x: center.x + radius * Math.cos(a),
+                    y: center.y + radius * Math.sin(a)
+                });
+            }
+        }
+        // Obdélníky - 4 rohy
+        else if (obj.type === 'rect') {
+            const matrix = obj.calcTransformMatrix();
+            const w = obj.width / 2;
+            const h = obj.height / 2;
+
+            for (const [lx, ly] of [[-w, -h], [w, -h], [w, h], [-w, h]]) {
+                const point = fabric.util.transformPoint({ x: lx, y: ly }, matrix);
+                snapPoints.push(point);
+            }
+        }
+        // Elipsy - 4 body
+        else if (obj.type === 'ellipse') {
+            const center = obj.getCenterPoint();
+            const rx = obj.rx * obj.scaleX;
+            const ry = obj.ry * obj.scaleY;
+            const angle = obj.angle * Math.PI / 180;
+
+            for (let i = 0; i < 4; i++) {
+                const a = angle + (i * Math.PI / 2);
+                snapPoints.push({
+                    x: center.x + rx * Math.cos(a),
+                    y: center.y + ry * Math.sin(a)
+                });
+            }
+        }
+        // Polygony - všechny vrcholy
+        else if (obj.type === 'polygon') {
+            const matrix = obj.calcTransformMatrix();
+            for (const point of obj.points) {
+                const transformed = fabric.util.transformPoint(point, matrix);
+                snapPoints.push(transformed);
+            }
+        }
+        // Path objekty - 4 body z bounding boxu
+        else if (obj.type === 'path') {
+            const matrix = obj.calcTransformMatrix();
+            const bounds = obj.getBoundingRect(false, true);
+            const w = bounds.width / 2;
+            const h = bounds.height / 2;
+
+            for (const [lx, ly] of [[0, -h], [w, 0], [0, h], [-w, 0]]) {
+                const point = fabric.util.transformPoint({ x: lx, y: ly }, matrix);
+                snapPoints.push(point);
+            }
+        }
+        // Group objekty - 4 body z bounding boxu
+        else if (obj.type === 'group') {
+            const matrix = obj.calcTransformMatrix();
+            const w = obj.width / 2;
+            const h = obj.height / 2;
+
+            for (const [lx, ly] of [[0, -h], [w, 0], [0, h], [-w, 0]]) {
+                const point = fabric.util.transformPoint({ x: lx, y: ly }, matrix);
+                snapPoints.push(point);
+            }
+        }
+
+        // Najdi nejbližší bod
+        for (const pos of snapPoints) {
             const dist = Math.hypot(pointer.x - pos.x, pointer.y - pos.y);
             if (dist < minDist) {
                 minDist = dist;
-                closest = { x: pos.x, y: pos.y, line: lineObj, which };
+                closest = { x: pos.x, y: pos.y, obj: obj };
             }
         }
     }
-    
+
     return closest;
 }
 
@@ -1401,11 +1482,12 @@ function setDrawMode(newMode, button) {
         canvas.discardActiveObject();
         canvas.defaultCursor = 'crosshair';
         canvas.hoverCursor = 'crosshair';
+        // Při kreslení VŠECHNY objekty neselectable
         canvas.getObjects().forEach(obj => {
             obj.selectable = false;
             obj.evented = false;
         });
-    } else { 
+    } else {
         canvas.selection = true;
         lockImage(false);
         canvas.defaultCursor = 'default';
@@ -1413,7 +1495,7 @@ function setDrawMode(newMode, button) {
         canvas.getObjects().forEach(obj => {
             const isBlank = obj._element?.src?.includes('blank_');
             let canSelect = false;
-            if (newMode === 'select') { 
+            if (newMode === 'select') {
                 canSelect = !isBlank && (obj.layer === 'draw' || obj.layer === 'image');
             } else if (newMode === 'textSelect') {
                 canSelect = obj.layer === 'text';
@@ -1663,11 +1745,21 @@ canvas.on('mouse:down', (o) => {
         return;
     }
 
-    if (drawMode) {
+    // Kreslení - ale ne když je režim 'select' nebo 'textSelect'
+    if (drawMode && drawMode !== 'select' && drawMode !== 'textSelect') {
         isDown = true;
         historyBatch = true;
-        origX = pointer.x;
-        origY = pointer.y;
+
+        // Snapping při začátku kreslení
+        const snap = findSnapPoint(pointer);
+        if (snap) {
+            origX = snap.x;
+            origY = snap.y;
+            showSnapIndicator(snap);
+        } else {
+            origX = pointer.x;
+            origY = pointer.y;
+        }
 
         const width = parseInt(document.getElementById('brushWidth').value);
 
@@ -1845,12 +1937,18 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'cross') {
-            const thinWidth = Math.max(1, width * 0.15);
+            const thinWidth = Math.max(0.5, width * 0.05); // Základní šířka čáry
             cross = new fabric.Group([
-                new fabric.Line([0, 0, 1, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' }),
-                new fabric.Line([1, 0, 0, 1], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' })
+                new fabric.Line([0, 0, 100, 100], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' }),
+                new fabric.Line([100, 0, 0, 100], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' })
             ], {
-                left: origX, top: origY, scaleX: 1, scaleY: 1, selectable: false, evented: false, layer: 'draw',
+                left: origX,
+                top: origY,
+                scaleX: 0.01,
+                scaleY: 0.01,
+                selectable: false,
+                evented: false,
+                layer: 'draw',
                 strokeUniform: true
             });
             canvas.add(cross);
@@ -1869,25 +1967,6 @@ canvas.on('path:created', function (e) {
         evented: false,
         objectCaching: false
     });
-
-    // Aplikovat aktivní filtry na nově vytvořený objekt
-    const filterDraw = document.getElementById('filterLayerDraw')?.checked ?? false;
-    if (filterDraw) {
-        const brightness = parseFloat(document.getElementById('brightness').value);
-        const contrast = parseFloat(document.getElementById('contrast').value);
-        const saturation = parseFloat(document.getElementById('saturation').value);
-
-        const baseFilters = [
-            new fabric.Image.filters.Brightness({ brightness }),
-            new fabric.Image.filters.Contrast({ contrast }),
-            new fabric.Image.filters.Saturation({ saturation })
-        ];
-
-        if (activeFilter) baseFilters.push(activeFilter);
-
-        applyFiltersToObject(e.path, baseFilters, brightness, contrast, saturation);
-        canvas.requestRenderAll();
-    }
 });
 
 
@@ -1899,7 +1978,17 @@ canvas.on('mouse:move', (o) => {
         snapLineMouseMove(o);
         return;
     }
-    
+
+    // Zobrazit snap indikátor u všech nástrojů (ale ne v režimu select/textSelect)
+    if (drawMode && drawMode !== 'eraser' && drawMode !== 'textBox' && drawMode !== 'select' && drawMode !== 'textSelect') {
+        const snap = findSnapPoint(pointer);
+        if (snap) {
+            showSnapIndicator(snap);
+        } else {
+            hideSnapIndicator();
+        }
+    }
+
     if (drawMode === 'textBox' && isDown) {
         const width = pointer.x - origX;
         const height = pointer.y - origY;
@@ -2054,7 +2143,12 @@ canvas.on('mouse:move', (o) => {
             const h = Math.abs(pointer.y - origY);
             const size = Math.max(w, h);
             if (size > 1) {
-                cross.set({ scaleX: size, scaleY: size });
+                // Škálování od 0.01 (1 pixel) do size/100
+                const scale = size / 100;
+                cross.set({
+                    scaleX: scale,
+                    scaleY: scale
+                });
                 cross.setCoords();
             }
         }
@@ -2140,34 +2234,19 @@ canvas.on('mouse:up', (o) => {
         return;
     }
 
-    if (drawMode && isDown) {
+    // Dokončení kreslení - ale ne v režimu 'select' nebo 'textSelect'
+    if (drawMode && drawMode !== 'select' && drawMode !== 'textSelect' && isDown) {
         const objToSelect = lastCreatedObject;
-
+        
         if (objToSelect) {
-            objToSelect.set({
-                selectable: true,
-                evented: true
-            });
+            // NEBUDEME nastavovat selectable: true - objekty zůstanou nevybíratelné při kreslení
+            // objToSelect.set({
+            //     selectable: true,
+            //     evented: true
+            // });
 
-            // Aplikovat aktivní filtry na nově vytvořený objekt
-            const filterDraw = document.getElementById('filterLayerDraw')?.checked ?? false;
-            if (filterDraw && objToSelect.layer === 'draw') {
-                const brightness = parseFloat(document.getElementById('brightness').value);
-                const contrast = parseFloat(document.getElementById('contrast').value);
-                const saturation = parseFloat(document.getElementById('saturation').value);
-
-                const baseFilters = [
-                    new fabric.Image.filters.Brightness({ brightness }),
-                    new fabric.Image.filters.Contrast({ contrast }),
-                    new fabric.Image.filters.Saturation({ saturation })
-                ];
-
-                if (activeFilter) baseFilters.push(activeFilter);
-
-                applyFiltersToObject(objToSelect, baseFilters, brightness, contrast, saturation);
-            }
-
-            if (objToSelect.type === 'polygon' || objToSelect.type === 'path' || objToSelect.type === 'group') {
+            // Změnit origin na center pro všechny tvary (kromě čar)
+            if (objToSelect.type !== 'line') {
                 const center = objToSelect.getCenterPoint();
                 objToSelect.set({
                     originX: 'center',
@@ -2178,18 +2257,21 @@ canvas.on('mouse:up', (o) => {
                 objToSelect.setCoords();
             }
 
-            setDrawMode('select', document.getElementById('drawSelectBtn'));
-            
-            setTimeout(() => {
-                canvas.setActiveObject(objToSelect);
-                canvas.requestRenderAll();
-            }, 50);
+            // NEBUDEME přepínat na select - zachováme aktivní nástroj
+            // setDrawMode('select', document.getElementById('drawSelectBtn'));
+
+            // NEBUDEME označovat objekt - rovnou kreslíme další
+            // setTimeout(() => {
+            //     canvas.setActiveObject(objToSelect);
+            //     canvas.requestRenderAll();
+            // }, 50);
         }
         
         line = circle = rect = triangle = rightTriangle = ellipse = star = heart = arrow = speechBubble = roundedSpeechBubble = roundedRect = curvedArrow = hexagon = cross = null;
         lastCreatedObject = null;
         isDown = false;
         historyBatch = false;
+        hideSnapIndicator(); // Skryj snap indikátor po dokončení kreslení
         saveHistoryState('draw-finished');
         canvas.requestRenderAll();
     }
