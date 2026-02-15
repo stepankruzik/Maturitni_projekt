@@ -1869,6 +1869,25 @@ canvas.on('path:created', function (e) {
         evented: false,
         objectCaching: false
     });
+
+    // Aplikovat aktivní filtry na nově vytvořený objekt
+    const filterDraw = document.getElementById('filterLayerDraw')?.checked ?? false;
+    if (filterDraw) {
+        const brightness = parseFloat(document.getElementById('brightness').value);
+        const contrast = parseFloat(document.getElementById('contrast').value);
+        const saturation = parseFloat(document.getElementById('saturation').value);
+
+        const baseFilters = [
+            new fabric.Image.filters.Brightness({ brightness }),
+            new fabric.Image.filters.Contrast({ contrast }),
+            new fabric.Image.filters.Saturation({ saturation })
+        ];
+
+        if (activeFilter) baseFilters.push(activeFilter);
+
+        applyFiltersToObject(e.path, baseFilters, brightness, contrast, saturation);
+        canvas.requestRenderAll();
+    }
 });
 
 
@@ -2123,13 +2142,31 @@ canvas.on('mouse:up', (o) => {
 
     if (drawMode && isDown) {
         const objToSelect = lastCreatedObject;
-        
+
         if (objToSelect) {
             objToSelect.set({
                 selectable: true,
                 evented: true
             });
-            
+
+            // Aplikovat aktivní filtry na nově vytvořený objekt
+            const filterDraw = document.getElementById('filterLayerDraw')?.checked ?? false;
+            if (filterDraw && objToSelect.layer === 'draw') {
+                const brightness = parseFloat(document.getElementById('brightness').value);
+                const contrast = parseFloat(document.getElementById('contrast').value);
+                const saturation = parseFloat(document.getElementById('saturation').value);
+
+                const baseFilters = [
+                    new fabric.Image.filters.Brightness({ brightness }),
+                    new fabric.Image.filters.Contrast({ contrast }),
+                    new fabric.Image.filters.Saturation({ saturation })
+                ];
+
+                if (activeFilter) baseFilters.push(activeFilter);
+
+                applyFiltersToObject(objToSelect, baseFilters, brightness, contrast, saturation);
+            }
+
             if (objToSelect.type === 'polygon' || objToSelect.type === 'path' || objToSelect.type === 'group') {
                 const center = objToSelect.getCenterPoint();
                 objToSelect.set({
@@ -4102,14 +4139,17 @@ function applyStyleToSelectionOrAll(obj, styleProps) {
     const start = obj.selectionStart;
     const end = obj.selectionEnd;
 
-    if (obj.isEditing && typeof start !== 'undefined' && start !== end) {
+    // Pokud je v editačním módu a má výběr, aplikuj jen na výběr
+    if (obj.isEditing && typeof start !== 'undefined' && typeof end !== 'undefined' && start !== end) {
         obj.setSelectionStyles(styleProps, start, end);
     } else {
+        // Jinak aplikuj na celý text
         obj.set(styleProps);
     }
 
     obj.dirty = true;
     canvas.requestRenderAll();
+    scheduleTextHistory();
 }
 
 function toggleTextStyle(style) {
