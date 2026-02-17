@@ -9,7 +9,7 @@ class ImageController extends Controller
 public function upload(Request $request)
 {
     $request->validate([
-        'image' => 'required|image|max:10240',
+        'image' => 'required|mimes:jpeg,jpg,png,gif,bmp,webp,heic,heif|max:51200|dimensions:max_width=4001,max_height=2251', // max 50MB, max rozměry 4000x2250, včetně HEIC
     ]);
 
     $file = $request->file('image');

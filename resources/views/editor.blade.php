@@ -773,6 +773,9 @@
                 Vložit
             </button>
         </div>
+        
+        <!-- Toast notifikace -->
+        <div id="toastContainer" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
     </div>
 </div>
 
@@ -782,6 +785,65 @@
 const canvas = new fabric.Canvas('canvas', {
     preserveObjectStacking: true  // Zachová pořadí vrstev při výběru objektu
 });
+
+// Toast notifikačního systému
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    
+    // Stylování dle typu
+    const typeStyles = {
+        'success': 'bg-green-500',
+        'error': 'bg-red-500',
+        'warning': 'bg-yellow-500',
+        'info': 'bg-blue-500'
+    };
+    
+    const bgClass = typeStyles[type] || typeStyles['info'];
+    
+    toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in`;
+    toast.innerHTML = `
+        <span>${message}</span>
+        <button class="ml-auto text-white hover:opacity-70" onclick="this.parentElement.remove()">✕</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Automatické skrytí
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.style.animation = 'fade-out 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+}
+
+// CSS animace (přidáno do style tagu)
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slide-in {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    @keyframes fade-out {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
+    }
+    .animate-slide-in {
+        animation: slide-in 0.3s ease-out;
+    }
+`;
+document.head.appendChild(style);
 
 // Globální proměnná pro cílový objekt kreslení
 let drawContextTarget = null;
@@ -2564,7 +2626,7 @@ function loadImage(url) {
         if (currentImage) canvas.remove(currentImage);
 
         currentImage = img;
-        img.layer = 'image';
+        img.layer = 'background'; // Main loaded image is background layer
         originalImageWidth = img.width;
         originalImageHeight = img.height;
 
@@ -2582,7 +2644,7 @@ img.set({
     hasRotatingPoint: !isBlank,
     cornerStyle: 'circle'
 });
-if (isBlank) img.sendToBack();
+img.sendToBack(); // Always send background to back
 
 // Skrýt/zobrazit tlačítka pravítka a uzamykání podle typu obrázku
 document.getElementById('toggleRulerBtn').style.display = isBlank ? 'none' : '';
@@ -3357,6 +3419,55 @@ function getStrokeColor() {
     return document.getElementById('drawColor').value;
 }
 
+// Helper: clamp value between min and max
+function clamp(v, min, max) {
+    return Math.min(Math.max(v, min), max);
+}
+
+// Helper: fit object into canvas with padding (for overlay images)
+function fitObjectIntoCanvas(obj, padding = 20, allowUpscale = false) {
+    if (!obj) return;
+
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+
+    // Get object dimensions
+    const objW = obj.width * obj.scaleX;
+    const objH = obj.height * obj.scaleY;
+
+    // Calculate scale to fit within canvas with padding
+    const maxW = canvasW - padding * 2;
+    const maxH = canvasH - padding * 2;
+
+    let scale = Math.min(maxW / objW, maxH / objH);
+
+    // Don't upscale if not allowed
+    if (!allowUpscale && scale > 1) {
+        scale = 1;
+    }
+
+    // Apply uniform scale
+    obj.set({
+        scaleX: obj.scaleX * scale,
+        scaleY: obj.scaleY * scale,
+        left: canvasW / 2,
+        top: canvasH / 2,
+        originX: 'center',
+        originY: 'center'
+    });
+
+    obj.setCoords();
+}
+
+// Helper: check if ANY checkbox with given class is checked (for layer visibility)
+function anyChecked(selectorClass) {
+    const checkboxes = document.querySelectorAll(`.${selectorClass}`);
+    for (let cb of checkboxes) {
+        if (cb.checked) return true;
+    }
+    return false;
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
 
@@ -3868,12 +3979,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 function updateLayersVisibility() {
-    const showImage = document.querySelector('.layerImageCheck').checked;
-    const showDraw = document.querySelector('.layerDrawCheck').checked;
-    const showText = document.querySelector('.layerTextCheck').checked;
+    // Use anyChecked to handle multiple checkboxes in different panels
+    const showImage = anyChecked('layerImageCheck');
+    const showDraw = anyChecked('layerDrawCheck');
+    const showText = anyChecked('layerTextCheck');
 
     canvas.getObjects().forEach(obj => {
-        if (obj.layer === 'image') obj.visible = showImage;
+        // Both 'background' and 'image' layers controlled by layerImageCheck
+        if (obj.layer === 'background' || obj.layer === 'image') obj.visible = showImage;
         if (obj.layer === 'draw') obj.visible = showDraw;
         if (obj.layer === 'text') obj.visible = showText;
     });
@@ -3901,6 +4014,38 @@ document.querySelectorAll('.layerTextCheck').forEach(cb => {
 canvas.on('selection:created', handleSelectionChange);
 canvas.on('selection:updated', handleSelectionChange);
 canvas.on('selection:cleared', handleSelectionChange);
+
+// Double-click on overlay image to set as base image
+canvas.on('mouse:dblclick', function(opt) {
+    const target = opt.target;
+
+    // Only works on overlay images (not already background)
+    if (!target || target.type !== 'image' || target.layer !== 'image') return;
+
+    // Swap with currentImage
+    if (currentImage && currentImage !== target) {
+        // Set old background as overlay
+        currentImage.layer = 'image';
+        currentImage.set({
+            selectable: true,
+            evented: true
+        });
+    }
+
+    // Set clicked overlay as new background
+    target.layer = 'background';
+    currentImage = target;
+
+    // Send to back
+    currentImage.sendToBack();
+
+    // Update UI
+    updateImageSize();
+    updateRotationAngle();
+    canvas.requestRenderAll();
+
+    showToast('Obrázek nastaven jako základní', 'success');
+});
 
 function handleSelectionChange(e) {
     const activeObject = canvas.getActiveObject();
@@ -4832,27 +4977,70 @@ document.getElementById('addImageBtn').addEventListener('click', () => {
 document.getElementById('addImageInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Validace velikosti souboru (max 50 MB)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+    if (file.size > MAX_FILE_SIZE) {
+        showToast(`Soubor je příliš velký (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum je 50 MB.`, 'error', 5000);
+        e.target.value = '';
+        return;
+    }
+    
     const reader = new FileReader();
     reader.onload = function(evt) {
-        fabric.Image.fromURL(evt.target.result, function(img) {
-            img.set({
-                left: canvas.width / 2,
-                top: canvas.height / 2,
-                originX: 'center',
-                originY: 'center',
-                scaleX: 1,
-                scaleY: 1,
-                selectable: true,
-                evented: true,
-                layer: 'image',
-            });
-            canvas.add(img);
-            canvas.setActiveObject(img);
-            canvas.requestRenderAll();
-            saveHistoryState('add-image');
-            // Apply current filters to added image
-            applyFilters();
-        }, { crossOrigin: 'anonymous' });
+        // Vytvoř dočasný Image element pro zjištění rozlišení
+        const img = new Image();
+        img.onload = function() {
+            // Validace rozlišení (max 4K: 4000x2250)
+            const MAX_WIDTH = 4000;  // Přesně 4K
+            const MAX_HEIGHT = 2250; // Přesně 4K
+
+            if (img.width > MAX_WIDTH || img.height > MAX_HEIGHT) {
+                showToast(
+                    `Rozlišení je příliš velké (${img.width}×${img.height}). Maximum je 4K (4000×2250).`,
+                    'error',
+                    5000
+                );
+                e.target.value = '';
+                return;
+            }
+
+            // Všechny validace prošly - načti obrázek jako overlay
+            fabric.Image.fromURL(evt.target.result, function(fabricImg) {
+                // Set as overlay image (not background)
+                fabricImg.set({
+                    originX: 'center',
+                    originY: 'center',
+                    scaleX: 1,
+                    scaleY: 1,
+                    selectable: true,
+                    evented: true,
+                    cornerStyle: 'circle',
+                    hasRotatingPoint: true,
+                    layer: 'image', // Overlay layer
+                });
+
+                // Fit into canvas with padding (don't upscale)
+                fitObjectIntoCanvas(fabricImg, 20, false);
+
+                canvas.add(fabricImg);
+                canvas.setActiveObject(fabricImg);
+                canvas.requestRenderAll();
+                saveHistoryState('add-image');
+
+                // Zobraz úspěšné oznámení
+                showToast(`Obrázek vložen (${img.width}×${img.height})`, 'success');
+            }, { crossOrigin: 'anonymous' });
+        };
+        img.onerror = function() {
+            showToast('Nelze načíst obrázek. Zkuste jiný soubor.', 'error');
+            e.target.value = '';
+        };
+        img.src = evt.target.result;
+    };
+    reader.onerror = function() {
+        showToast('Chyba při čtení souboru. Zkuste znovu.', 'error');
+        e.target.value = '';
     };
     reader.readAsDataURL(file);
     // Reset input pro možnost vložit stejný obrázek znovu
