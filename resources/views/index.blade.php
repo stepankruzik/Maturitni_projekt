@@ -8,8 +8,11 @@
 
         <form id="uploadForm" action="{{ route('upload') }}" method="POST" enctype="multipart/form-data" class="hidden">
             @csrf
-            <input id="fileInput" type="file" name="image" accept="image/*">
+            <input id="fileInput" type="file" name="image" accept="image/*,image/heic,image/heif,.heic,.heif">
         </form>
+        
+        <!-- Toast notifikace -->
+        <div id="toastContainer" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
 
         <div id="dropZone"
              class="border-4 border-dashed border-gray-400 rounded-2xl p-12 text-center cursor-pointer
@@ -29,6 +32,104 @@
     </form>
 
     <script>
+        // Toast notifikační systém
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const typeStyles = {
+                'success': 'bg-green-500',
+                'error': 'bg-red-500',
+                'warning': 'bg-yellow-500',
+                'info': 'bg-blue-500'
+            };
+            
+            const bgClass = typeStyles[type] || typeStyles['info'];
+            
+            toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button class="ml-auto text-white hover:opacity-70" onclick="this.parentElement.remove()">✕</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.style.animation = 'fade-out 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+        }
+        
+        // CSS animace
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slide-in {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes fade-out {
+                from {
+                    opacity: 1;
+                }
+                to {
+                    opacity: 0;
+                }
+            }
+            .animate-slide-in {
+                animation: slide-in 0.3s ease-out;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Validace a upload
+        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+        const MAX_WIDTH = 4000;  // Přesně 4K
+        const MAX_HEIGHT = 2250; // Přesně 4K
+
+        function validateAndUploadFile(file) {
+            if (!file) return;
+
+            // Validace velikosti
+            if (file.size > MAX_FILE_SIZE) {
+                showToast(`Soubor je příliš velký (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum je 50 MB.`, 'error', 5000);
+                return;
+            }
+
+            // Validace rozlišení
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    if (img.width > MAX_WIDTH || img.height > MAX_HEIGHT) {
+                        showToast(`Rozlišení je příliš velké (${img.width}×${img.height}). Maximum je 4K (4000×2250).`, 'error', 5000);
+                        return;
+                    }
+                    
+                    // Všechny validace prošly - odešli formulář
+                    const form = document.getElementById('uploadForm');
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    document.getElementById('fileInput').files = dataTransfer.files;
+                    
+                    showToast(`Obrázek se nahrává (${img.width}×${img.height})...`, 'info');
+                    form.submit();
+                };
+                img.onerror = function() {
+                    showToast('Nelze načíst obrázek. Zkuste jiný soubor.', 'error');
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const form = document.getElementById('uploadForm');
@@ -49,17 +150,11 @@
             dropZone.classList.remove('border-indigo-500');
 
             const file = e.dataTransfer.files[0];
-            if (!file) return;
-
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            fileInput.files = dataTransfer.files;
-
-            form.submit();
+            validateAndUploadFile(file);
         });
 
         fileInput.addEventListener('change', () => {
-            form.submit();
+            validateAndUploadFile(fileInput.files[0]);
         });
     </script>
 <!-- Šablony prázdného plátna -->
