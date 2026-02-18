@@ -2739,118 +2739,63 @@ document.getElementById('toggleMode').addEventListener('click', () => {
     }
 });
 
-// Crop obrázku
+// Crop obrázku - ořízne celý canvas včetně všech vrstev
 document.getElementById('cropBtn').addEventListener('click', async () => {
     if (!currentImage || !cropRect) return;
 
     historyBatch = true;
-    const img = currentImage;
     const rect = cropRect;
 
     // Získání hranice crop oblasti v souřadnicích canvasu
     const cropBounds = rect.getBoundingRect(true);
     const cropLeft = cropBounds.left;
     const cropTop = cropBounds.top;
-    const cropVisualWidth = cropBounds.width;
-    const cropVisualHeight = cropBounds.height;
+    const cropWidth = cropBounds.width;
+    const cropHeight = cropBounds.height;
 
-    // Uložení všech objektů (kreslení + text)
-    const drawObjectsToClone = canvas.getObjects().filter(obj => 
-        (obj.layer === 'draw' || obj.layer === 'text') && obj !== eraserCursor
-    );
-    
-    const clonePromises = drawObjectsToClone.map(obj => {
-        return new Promise(resolve => {
-            obj.clone(cloned => {
-                // Přepočet pozice relativně k crop oblasti
-                const relativeLeft = obj.left - cropLeft;
-                const relativeTop = obj.top - cropTop;
-                
-                cloned.set({
-                    left: relativeLeft,
-                    top: relativeTop,
-                    layer: obj.layer 
-                });
-                
-                resolve(cloned);
-            });
-        });
+    // Skrýt cropRect před exportem
+    rect.visible = false;
+    canvas.requestRenderAll();
+
+    // Použít Fabric.js toDataURL s crop parametry - ořízne celý canvas včetně všech vrstev
+    const croppedDataURL = canvas.toDataURL({
+        format: 'png',
+        left: cropLeft,
+        top: cropTop,
+        width: cropWidth,
+        height: cropHeight,
+        multiplier: 1
     });
-    
-    const drawObjects = await Promise.all(clonePromises);
 
-    const cropCenter = rect.getCenterPoint();
-    const localPoint = img.toLocalPoint(cropCenter, 'center', 'center');
-
-    const cropWidth = rect.width * rect.scaleX / img.scaleX;
-    const cropHeight = rect.height * rect.scaleY / img.scaleY;
-
-    const left = (localPoint.x / img.scaleX) + (img.width / 2) - (cropWidth / 2);
-    const top = (localPoint.y / img.scaleY) + (img.height / 2) - (cropHeight / 2);
-
-    const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = cropWidth;
-    exportCanvas.height = cropHeight;
-    const ctx = exportCanvas.getContext("2d");
-
-    ctx.drawImage(
-        img._element,      
-        left, top,         
-        cropWidth, cropHeight,
-        0, 0,             
-        cropWidth, cropHeight 
-    );
-
-    const url = exportCanvas.toDataURL("image/png");
-
-    fabric.Image.fromURL(url, newImg => {
+    // Načíst oříznutý obrázek
+    fabric.Image.fromURL(croppedDataURL, newImg => {
+        // Vymazat canvas (všechny objekty)
         canvas.clear();
-        currentImage = newImg;
 
+        // Nastavit nový obrázek jako background
+        // Tento obrázek už obsahuje všechny vrstvy (background + overlay + kresby + text)
+        currentImage = newImg;
         newImg.set({
             originX: 'center',
             originY: 'center',
             selectable: true,
             hasRotatingPoint: true,
-            cornerStyle: 'circle'
+            cornerStyle: 'circle',
+            layer: 'background'
         });
-        newImg.layer = 'image';
 
         canvas.add(newImg);
-        
+        newImg.sendToBack();
+
+        // Reset viewport a přizpůsobit obrázek
         canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
         fitImageToCanvas(newImg);
         fitObjectToViewport(newImg);
         updateImageSize();
 
-        // Přepočet škálování pro kresby
-        const newImgBounds = newImg.getBoundingRect(true);
-        const scaleRatioX = newImgBounds.width / cropVisualWidth;
-        const scaleRatioY = newImgBounds.height / cropVisualHeight;
-        
-        // Offset nového obrázku (jeho levý horní roh)
-        const newImgLeft = newImgBounds.left;
-        const newImgTop = newImgBounds.top;
-
-        // Přidání kreseb zpět s novými pozicemi
-        drawObjects.forEach(obj => {
-            // Škálování pozice a velikosti podle nového obrázku
-            const scaledLeft = obj.left * scaleRatioX + newImgLeft;
-            const scaledTop = obj.top * scaleRatioY + newImgTop;
-            
-            obj.set({
-                left: scaledLeft,
-                top: scaledTop,
-                scaleX: (obj.scaleX || 1) * scaleRatioX,
-                scaleY: (obj.scaleY || 1) * scaleRatioY
-            });
-            
-            obj.setCoords();
-            canvas.add(obj);
-        });
-
         canvas.requestRenderAll();
 
+        // Reset režimu
         cropRect = null;
         mode = 'resize';
         document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
