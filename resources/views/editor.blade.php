@@ -54,20 +54,29 @@
     </div>
 
     <div id="panelFilters" class="tab-panel hidden">
-        <div class="mb-3">
-            <p class="text-sm font-semibold text-gray-600 mb-2">Aplikovat filtry na vrstvy:</p>
-            <div class="flex gap-3 flex-wrap">
-                <label class="flex items-center gap-1 text-sm">
-                    <input type="checkbox" id="filterLayerImage" checked class="filterLayerCheck">
-                    Obrázek
+        <div class="mb-4">
+            <p class="text-sm font-semibold text-gray-700 mb-3">Aplikovat filtry na vrstvy:</p>
+            <div class="flex gap-2 flex-wrap">
+                <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-gray-200">
+                    <input type="checkbox" id="filterLayerImage" checked class="filterLayerCheck w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500">
+                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="text-gray-700 font-medium">Obrázek</span>
                 </label>
-                <label class="flex items-center gap-1 text-sm">
-                    <input type="checkbox" id="filterLayerDraw" class="filterLayerCheck">
-                    Kresby
+                <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-gray-200">
+                    <input type="checkbox" id="filterLayerDraw" class="filterLayerCheck w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500">
+                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                    </svg>
+                    <span class="text-gray-700 font-medium">Kresby</span>
                 </label>
-                <label class="flex items-center gap-1 text-sm">
-                    <input type="checkbox" id="filterLayerText" class="filterLayerCheck">
-                    Text
+                <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors border border-gray-200">
+                    <input type="checkbox" id="filterLayerText" class="filterLayerCheck w-4 h-4 text-green-600 rounded focus:ring-2 focus:ring-green-500">
+                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                    </svg>
+                    <span class="text-gray-700 font-medium">Text</span>
                 </label>
             </div>
         </div>
@@ -370,21 +379,30 @@
 
     <!-- VRSTVY -->
     <div class="border-t pt-3 space-y-2">
-        <p class="text-sm font-semibold text-gray-600">Vrstvy</p>
+        <p class="text-sm font-semibold text-gray-700 mb-2">Vrstvy</p>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="layerImageCheck" checked>
-            Obrázek
+        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+            <input type="checkbox" class="layerImageCheck w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <span class="text-gray-700">Obrázek</span>
         </label>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="layerDrawCheck" checked>
-            Kreslení
+        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+            <input type="checkbox" class="layerDrawCheck w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+            </svg>
+            <span class="text-gray-700">Kreslení</span>
         </label>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="layerTextCheck" checked>
-            Text
+        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+            <input type="checkbox" class="layerTextCheck w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+            </svg>
+            <span class="text-gray-700">Text</span>
         </label>
     </div>
 
@@ -513,21 +531,30 @@
 
     <!-- VRSTVY -->
     <div class="border-t pt-3 mt-4 space-y-2">
-        <p class="text-sm font-semibold text-gray-600">Vrstvy</p>
+        <p class="text-sm font-semibold text-gray-700 mb-2">Vrstvy</p>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="layerImageCheck" checked>
-            Obrázek
+        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+            <input type="checkbox" class="layerImageCheck w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <span class="text-gray-700">Obrázek</span>
         </label>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="layerDrawCheck" checked>
-            Kreslení
+        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+            <input type="checkbox" class="layerDrawCheck w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+            </svg>
+            <span class="text-gray-700">Kreslení</span>
         </label>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" class="layerTextCheck" checked>
-            Text
+        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+            <input type="checkbox" class="layerTextCheck w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" checked>
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+            </svg>
+            <span class="text-gray-700">Text</span>
         </label>
     </div>
 
