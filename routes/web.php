@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 
 Route::get('/', [ProjectController::class, 'index'])->name('home');
 Route::post('/upload', [ImageController::class, 'upload'])->name('upload');
-Route::post('/createBlank', [ImageController::class, 'createBlank'])->name('createBlank');
 
 Route::get('/editor', function() {
     $path = request()->get('path');

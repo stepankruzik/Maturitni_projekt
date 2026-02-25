@@ -21,25 +21,6 @@ public function upload(Request $request)
     return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
 }
 
-
-   public function createBlank(Request $request)
-{
-    $width = $request->input('width', 500);
-    $height = $request->input('height', 500);
-
-    $image = imagecreatetruecolor($width, $height);
-    $white = imagecolorallocate($image, 255, 255, 255);
-    imagefill($image, 0, 0, $white);
-
-    $filename = 'blank_' . time() . '.png';
-    $path = public_path('uploads/' . $filename);
-
-    imagepng($image, $path);
-    imagedestroy($image);
-
-    return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
-}
-
 public function store(Request $request)
 {
     $request->validate([
