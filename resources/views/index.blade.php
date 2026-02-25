@@ -22,14 +22,13 @@
     </div>
 
     <!-- Vytvoření prázdného obrázku -->
-    <form action="{{ route('createBlank') }}" method="POST" class="space-y-2 mt-6 max-w-xl mx-auto">
-        @csrf
-        <input type="number" name="width" placeholder="Šířka" class="border p-1">
-        <input type="number" name="height" placeholder="Výška" class="border p-1">
-        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">
+    <div class="space-y-2 mt-6 max-w-xl mx-auto">
+        <input type="number" id="blankWidth" placeholder="Šířka" class="border p-1">
+        <input type="number" id="blankHeight" placeholder="Výška" class="border p-1">
+        <button id="createBlankBtn" class="px-4 py-2 bg-green-600 text-white rounded">
             Vytvořit prázdný
         </button>
-    </form>
+    </div>
 
     <script>
         // Toast notifikační systém
@@ -274,28 +273,62 @@
 
 <script>
     const templateButtons = document.querySelectorAll('[data-width][data-height]');
-    const widthInput = document.querySelector('input[name="width"]');
-    const heightInput = document.querySelector('input[name="height"]');
-    
-    const createBlankForm = document.querySelector('form[action="{{ route('createBlank') }}"]');
+    const widthInput = document.getElementById('blankWidth');
+    const heightInput = document.getElementById('blankHeight');
+    const createBlankBtn = document.getElementById('createBlankBtn');
 
-    
+    // Funkce pro vytvoření prázdného obrázku
+    function createBlankImage(width, height) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
 
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+
+        // Převést na blob a odeslat na server
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('image', blob, 'blank.png');
+
+            try {
+                const response = await fetch('{{ route("upload") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: formData
+                });
+
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    const data = await response.json();
+                    console.error('Chyba:', data);
+                }
+            } catch (error) {
+                console.error('Chyba při nahrávání:', error);
+            }
+        }, 'image/png');
+    }
+
+    // Tlačítka šablon
     templateButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            
-            const width = btn.getAttribute('data-width');
-            const height = btn.getAttribute('data-height');
-            
-            widthInput.value = width;
-            heightInput.value = height;
+            const width = parseInt(btn.getAttribute('data-width'));
+            const height = parseInt(btn.getAttribute('data-height'));
 
-            if (createBlankForm) {
-                createBlankForm.submit();
-            } else {
-                console.error('Formulář pro vytvoření prázdného plátna nebyl nalezen!');
-            }
+            createBlankImage(width, height);
         });
+    });
+
+    // Ruční vytvoření prázdného obrázku
+    createBlankBtn.addEventListener('click', () => {
+        const width = parseInt(widthInput.value) || 500;
+        const height = parseInt(heightInput.value) || 500;
+
+        createBlankImage(width, height);
     });
 </script>
 
