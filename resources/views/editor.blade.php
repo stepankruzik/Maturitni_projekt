@@ -181,7 +181,47 @@
         </label>
     </div>
 
-    <!-- KRESLENÍ -->
+    <!-- KRESLÍCÍ NÁSTROJE -->
+    <div class="flex gap-2 mb-4 justify-around mt-4">
+    
+    <!-- tužka-->
+    <button id="drawBrushBtn" class="tool-btn" title="Kreslení tužkou">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+        </svg>
+    </button>
+
+    <!-- guma -->
+    <button id="drawEraserBtn" class="tool-btn" title="Guma">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="m7 21-4-4 9-9 4 4-9 9z"/>
+            <path d="M14 6 8 12"/>
+            <path d="m16 10 2 2"/>
+        </svg>
+    </button>
+
+    <!-- Mřížka -->
+    <button id="toggleGridBtn" class="tool-btn" title="Mřížka (pomůcka pro kreslení)">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="3" y1="15" x2="21" y2="15"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+            <line x1="15" y1="3" x2="15" y2="21"/>
+        </svg>
+    </button>
+
+    <!-- zamknout obrázek -->
+    <button id="lockObjectBtn" class="tool-btn" title="Zamknout/Odemknout obrázek">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+    </button>
+    </div>
+
+    <!-- TVARY -->
     <div class="flex gap-2 mb-4 justify-around">
 
     <!-- VÝBĚR -->
@@ -337,45 +377,6 @@
         <option value="butt">Rovné</option>
     </select>
 </label>
-
-    <div class="flex gap-2 mb-4 justify-around mt-4">
-    <!-- tužka-->
-    <button id="drawBrushBtn" class="tool-btn" title="Kreslení tužkou">
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 20h9"/>
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-        </svg>
-    </button>
-
-    <!-- guma -->
-    <button id="drawEraserBtn" class="tool-btn" title="Guma">
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="m7 21-4-4 9-9 4 4-9 9z"/>
-            <path d="M14 6 8 12"/>
-            <path d="m16 10 2 2"/>
-        </svg>
-    </button>
-
-    <!-- pravítko -->
-    <button id="toggleRulerBtn" class="tool-btn" title="Pravítko">
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M21.3 8.7 8.7 21.3c-1 1-2.5 1-3.4 0l-2.6-2.6c-1-1-1-2.5 0-3.4L15.3 2.7c1-1 2.5-1 3.4 0l2.6 2.6c1 1 1 2.5 0 3.4Z"/>
-            <path d="m7.5 10.5 2 2"/>
-            <path d="m10.5 7.5 2 2"/>
-            <path d="m13.5 4.5 2 2"/>
-            <path d="m4.5 13.5 2 2"/>
-        </svg>
-    </button>
-
-    <!-- zamknout obrázek -->
-    <button id="lockObjectBtn" class="tool-btn" title="Zamknout/Odemknout obrázek">
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-    </button>
-
-</div>
 
     <!-- VRSTVY -->
     <div class="border-t pt-3 space-y-2">
@@ -882,17 +883,17 @@ const HISTORY = {
   isRestoring: false,
   max: 50,
   extraProps: [
-    'layer', 'erasable', 'excludeFromExport', 'isRuler',
+    'layer', 'erasable', 'excludeFromExport', 'isGrid',
     'selectable', 'evented'
   ],
-}; 
+};
 
 function isHistoryObject(obj) {
   if (!obj) return false;
   if (obj === eraserCursor) return false;
   if (typeof snapIndicator !== 'undefined' && obj === snapIndicator) return false;
   if (typeof lengthIndicator !== 'undefined' && obj === lengthIndicator) return false;
-  if (obj.isRuler) return false;
+  if (obj.isGrid) return false;
   if (obj === cropRect) return false;
   return true;
 }
@@ -924,7 +925,7 @@ function cleanupAfterRestore() {
     hideEraserCursor?.();
 
     canvas.getObjects().forEach(o => {
-        if (o.isRuler) canvas.remove(o);
+        if (o.isGrid) canvas.remove(o);
     });
 
     canvas.getObjects().forEach(o => {
@@ -2673,15 +2674,15 @@ img.set({
 });
 img.sendToBack(); // Always send background to back
 
-// Skrýt/zobrazit tlačítka pravítka a uzamykání podle typu obrázku
-document.getElementById('toggleRulerBtn').style.display = isBlank ? 'none' : '';
+// Skrýt/zobrazit tlačítka mřížky a uzamykání podle typu obrázku
+document.getElementById('toggleGridBtn').style.display = isBlank ? 'none' : '';
 document.getElementById('lockObjectBtn').style.display = isBlank ? 'none' : '';
 
-// Vypnout pravítko pokud je aktivní a přepneme na šablonu
-if (isBlank && rulerEnabled) {
-    rulerEnabled = false;
-    document.getElementById('toggleRulerBtn').classList.remove('active');
-    removeRulers();
+// Vypnout mřížku pokud je aktivní a přepneme na šablonu
+if (isBlank && gridEnabled) {
+    gridEnabled = false;
+    document.getElementById('toggleGridBtn').classList.remove('active');
+    removeGrid();
 }
 
         canvas.add(img);
@@ -2780,8 +2781,10 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
     const cropWidth = cropBounds.width;
     const cropHeight = cropBounds.height;
 
-    // Skrýt cropRect před exportem
+    // Skrýt cropRect a mřížku před exportem
     rect.visible = false;
+    const objectsToHide = canvas.getObjects().filter(obj => obj.excludeFromExport || obj.isGrid);
+    objectsToHide.forEach(obj => obj.visible = false);
     canvas.requestRenderAll();
 
     // Použít Fabric.js toDataURL s crop parametry - ořízne celý canvas včetně všech vrstev
@@ -2793,6 +2796,9 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
         height: cropHeight,
         multiplier: 1
     });
+
+    // Vrátit viditelnost objektů (pro případ, že by crop selhal)
+    objectsToHide.forEach(obj => obj.visible = true);
 
     // Načíst oříznutý obrázek
     fabric.Image.fromURL(croppedDataURL, newImg => {
@@ -3328,7 +3334,16 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
 
     if (contentType === 'canvas') {
         if (!filenameInput) filename = `canvas_export.${format}`;
+
+        // Dočasně skrýt objekty, které se nemají exportovat
+        const objectsToHide = canvas.getObjects().filter(obj => obj.excludeFromExport || obj.isGrid);
+        objectsToHide.forEach(obj => obj.visible = false);
+
         dataURL = canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
+
+        // Vrátit viditelnost objektů
+        objectsToHide.forEach(obj => obj.visible = true);
+        canvas.requestRenderAll();
     } else {
         if (!filenameInput) filename = `image_only.${format}`;
     const img = currentImage;
@@ -3344,10 +3359,12 @@ document.getElementById('startDownloadBtn').addEventListener('click', () => {
     exportCtx.save();
     exportCtx.translate(-bbox.left, -bbox.top);
 
-    // vykreslení všech objektů kromě pozadí canvasu a kurzoru gumy
+    // vykreslení všech objektů kromě pozadí canvasu, kurzoru gumy a mřížky
     canvas.getObjects().forEach(obj => {
         if (obj.visible === false) return;
         if (obj === eraserCursor) return; // Přeskočíme kurzor gumy
+        if (obj.excludeFromExport) return; // Přeskočíme objekty označené jako excludeFromExport
+        if (obj.isGrid) return; // Přeskočíme mřížku
 
         exportCtx.save();
         obj.render(exportCtx);
@@ -3771,101 +3788,84 @@ document.getElementById('drawEraserBtn').addEventListener('click', function () {
     lockImage(true);
 });
 
-// Pravítko - toggle zobrazení rozměrů
-let rulerEnabled = false;
-let rulerLines = [];
-let rulerTexts = [];
+// Mřížka - pomůcka pro kreslení
+let gridEnabled = false;
+let gridLines = [];
 
-document.getElementById('toggleRulerBtn').addEventListener('click', function() {
-    rulerEnabled = !rulerEnabled;
-    this.classList.toggle('active', rulerEnabled);
-    
-    if (rulerEnabled) {
-        drawRulers();
+document.getElementById('toggleGridBtn').addEventListener('click', function() {
+    gridEnabled = !gridEnabled;
+    this.classList.toggle('active', gridEnabled);
+
+    if (gridEnabled) {
+        drawGrid();
     } else {
-        removeRulers();
+        removeGrid();
     }
 });
 
-function drawRulers() {
-    removeRulers();
-    
-    // Získat viewport transform pro správné umístění
-    const vpt = canvas.viewportTransform;
-    const zoom = canvas.getZoom();
-    
-    // Vypočítat viditelnou oblast
-    const visibleLeft = -vpt[4] / zoom;
-    const visibleTop = -vpt[5] / zoom;
-    const visibleWidth = canvas.getWidth() / zoom;
-    const visibleHeight = canvas.getHeight() / zoom;
-    
-    const step = 50; // každých 50px
-    
-    // Zaokrouhlit start na násobek stepu
-    const startX = Math.floor(visibleLeft / step) * step;
-    const startY = Math.floor(visibleTop / step) * step;
-    
-    // Horizontální pravítko (nahoře na viditelné oblasti)
-    for (let x = startX; x <= visibleLeft + visibleWidth; x += step) {
-        const line = new fabric.Line([x, visibleTop, x, visibleTop + 15 / zoom], {
-            stroke: '#666',
-            strokeWidth: 1 / zoom,
+function drawGrid() {
+    removeGrid();
+
+    if (!currentImage) return;
+
+    // Získat rozměry obrázku
+    const imgBounds = currentImage.getBoundingRect(true);
+    const imgLeft = imgBounds.left;
+    const imgTop = imgBounds.top;
+    const imgWidth = imgBounds.width;
+    const imgHeight = imgBounds.height;
+
+    // Velikost buňky mřížky (50px)
+    const gridSize = 50;
+
+    // Vertikální čáry
+    for (let x = imgLeft; x <= imgLeft + imgWidth; x += gridSize) {
+        const line = new fabric.Line([x, imgTop, x, imgTop + imgHeight], {
+            stroke: 'rgba(100, 150, 255, 0.3)',
+            strokeWidth: 1,
             selectable: false,
             evented: false,
             excludeFromExport: true,
-            isRuler: true
+            isGrid: true
         });
-        const text = new fabric.Text(Math.round(x).toString(), {
-            left: x + 2 / zoom,
-            top: visibleTop + 2 / zoom,
-            fontSize: 10 / zoom,
-            fill: '#666',
-            selectable: false,
-            evented: false,
-            excludeFromExport: true,
-            isRuler: true
-        });
-        canvas.add(line, text);
-        rulerLines.push(line);
-        rulerTexts.push(text);
+        canvas.add(line);
+        gridLines.push(line);
     }
-    
-    // Vertikální pravítko (vlevo na viditelné oblasti)
-    for (let y = startY; y <= visibleTop + visibleHeight; y += step) {
-        const line = new fabric.Line([visibleLeft, y, visibleLeft + 15 / zoom, y], {
-            stroke: '#666',
-            strokeWidth: 1 / zoom,
+
+    // Horizontální čáry
+    for (let y = imgTop; y <= imgTop + imgHeight; y += gridSize) {
+        const line = new fabric.Line([imgLeft, y, imgLeft + imgWidth, y], {
+            stroke: 'rgba(100, 150, 255, 0.3)',
+            strokeWidth: 1,
             selectable: false,
             evented: false,
             excludeFromExport: true,
-            isRuler: true
+            isGrid: true
         });
-        const text = new fabric.Text(Math.round(y).toString(), {
-            left: visibleLeft + 2 / zoom,
-            top: y + 2 / zoom,
-            fontSize: 10 / zoom,
-            fill: '#666',
-            selectable: false,
-            evented: false,
-            excludeFromExport: true,
-            isRuler: true
-        });
-        canvas.add(line, text);
-        rulerLines.push(line);
-        rulerTexts.push(text);
+        canvas.add(line);
+        gridLines.push(line);
     }
-    
+
+    // Poslat mřížku dozadu (ale před background)
+    gridLines.forEach(line => {
+        line.moveTo(1); // Za background (index 0)
+    });
+
     canvas.requestRenderAll();
 }
 
-function removeRulers() {
-    rulerLines.forEach(line => canvas.remove(line));
-    rulerTexts.forEach(text => canvas.remove(text));
-    rulerLines = [];
-    rulerTexts = [];
+function removeGrid() {
+    gridLines.forEach(line => canvas.remove(line));
+    gridLines = [];
     canvas.requestRenderAll();
 }
+
+// Překreslit mřížku při změně zoomu nebo panu
+canvas.on('after:render', function() {
+    if (gridEnabled && gridLines.length > 0) {
+        // Mřížka zůstává na místě, nemusíme ji překreslovat
+    }
+});
 
 // Zamknutí/odemknutí obrázku
 document.getElementById('lockObjectBtn').addEventListener('click', function() {
