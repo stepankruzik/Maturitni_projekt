@@ -4417,7 +4417,41 @@ document.getElementById('textSize').addEventListener('input', e => {
 });
 document.getElementById('textColor').addEventListener('input', e => {
     const obj = canvas.getActiveObject();
-    if (obj) applyStyleToSelectionOrAll(obj, { fill: e.target.value });
+    if (obj) {
+        const newColor = e.target.value;
+        
+        // Aktualizovat _originalFill na novou barvu, aby filtry fungovaly správně
+        obj._originalFill = newColor;
+        
+        // Vypni editing mód dočasně pro správné nastavení fill
+        const wasEditing = obj.isEditing;
+        if (wasEditing) {
+            obj.exitEditing();
+        }
+        
+        // Nastav barvu na celý objekt
+        obj.set({ fill: newColor });
+        obj.dirty = true;
+        
+        // Synchronizuj s horním toolbarem
+        const topToolbarColor = document.getElementById('textToolbarColor');
+        if (topToolbarColor) topToolbarColor.value = newColor;
+
+        // Pokud jsou zapnuté filtry na text, znovu je aplikovat na novou barvu
+        const filterText = document.getElementById('filterLayerText')?.checked ?? false;
+        if (filterText) {
+            applyFilters();
+        }
+        
+        canvas.requestRenderAll();
+        
+        // Vrať editing mód
+        if (wasEditing) {
+            obj.enterEditing();
+        }
+        
+        scheduleTextHistory();
+    }
 });
 
 // Zarovnání textu
@@ -5410,9 +5444,40 @@ canvas.on('object:moving', () => {
 document.getElementById('textToolbarColor').oninput = (e) => {
     const obj = canvas.getActiveObject();
     if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
-    applyStyleToSelectionOrAll(obj, { fill: e.target.value });
+
+    const newColor = e.target.value;
+    
+    // Aktualizovat _originalFill na novou barvu, aby filtry fungovaly správně
+    obj._originalFill = newColor;
+
+    // Vypni editing mód dočasně pro správné nastavení fill
+    const wasEditing = obj.isEditing;
+    if (wasEditing) {
+        obj.exitEditing();
+    }
+
+    // Nastav barvu na celý objekt
+    obj.set({ fill: newColor });
+    obj.dirty = true;
+
+    // Synchronizuj s levým panelem
+    const leftPanelColor = document.getElementById('textColor');
+    if (leftPanelColor) leftPanelColor.value = newColor;
+
+    // Pokud jsou zapnuté filtry na text, znovu je aplikovat na novou barvu
+    const filterText = document.getElementById('filterLayerText')?.checked ?? false;
+    if (filterText) {
+        applyFilters();
+    }
+
+    canvas.requestRenderAll();
+
+    // Vrať editing mód
+    if (wasEditing) {
+        obj.enterEditing();
+    }
+
     scheduleTextHistory();
-    syncTextToolbarFromObject(obj);
 };
 
 document.getElementById('deleteTextBtn').onclick = () => {
