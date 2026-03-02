@@ -6,15 +6,9 @@
 <body class="h-full">
     <div class="min-h-full">
         @if(!isset($hideNav) || !$hideNav)
-        <nav class="bg-gray-800 p-4 text-white">
-            <div class="flex space-x-4">
-                <a href="{{ route('home') }}" class="hover:underline">Home</a>
-            </div>
-        </nav>
-
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4">
-                <h1 class="text-2xl font-bold text-gray-900">{{ $heading ?? '' }}</h1>
+        <header class="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg">
+            <div class="max-w-7xl mx-auto py-8 px-4 text-center">
+                <h1 class="text-4xl font-bold text-white">{{ $heading ?? 'Editor fotek' }}</h1>
             </div>
         </header>
         @endif

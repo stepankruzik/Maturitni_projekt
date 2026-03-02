@@ -1,33 +1,51 @@
 <x-layout>
     <x-slot:heading>
-        Domů
+        Editor fotek
     </x-slot:heading>
 
-    <!-- Drag and drop / kliknutí -->
-    <div class="max-w-xl mx-auto mt-20">
+    <!-- Toast notifikace -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
 
+    <!-- Drag and drop / kliknutí -->
+    <div class="max-w-2xl mx-auto mt-12">
         <form id="uploadForm" action="{{ route('upload') }}" method="POST" enctype="multipart/form-data" class="hidden">
             @csrf
             <input id="fileInput" type="file" name="image" accept="image/*,image/heic,image/heif,.heic,.heif">
         </form>
-        
-        <!-- Toast notifikace -->
-        <div id="toastContainer" class="fixed bottom-4 right-4 z-[9999] space-y-2"></div>
 
         <div id="dropZone"
-             class="border-4 border-dashed border-gray-400 rounded-2xl p-12 text-center cursor-pointer
-                    hover:border-indigo-400 hover:bg-indigo-50 transition duration-200">
-            Přetáhni obrázek sem nebo klikni pro výběr
+             class="border-3 border-dashed border-indigo-300 rounded-3xl p-20 text-center cursor-pointer
+                    bg-white shadow-lg hover:border-indigo-500 hover:shadow-xl transition-all duration-300
+                    hover:scale-105">
+            <svg class="mx-auto h-16 w-16 text-indigo-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-xl text-gray-700 font-medium mb-2">Přetáhni obrázek sem</p>
+            <p class="text-gray-500">nebo klikni pro výběr ze zařízení</p>
         </div>
     </div>
 
-    <!-- Vytvoření prázdného obrázku -->
-    <div class="space-y-2 mt-6 max-w-xl mx-auto">
-        <input type="number" id="blankWidth" placeholder="Šířka" class="border p-1">
-        <input type="number" id="blankHeight" placeholder="Výška" class="border p-1">
-        <button id="createBlankBtn" class="px-4 py-2 bg-green-600 text-white rounded">
-            Vytvořit prázdný
-        </button>
+    <!-- Vytvoření prázdného plátna -->
+    <div class="max-w-2xl mx-auto mt-8">
+        <div class="bg-white rounded-2xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Vytvořit prázdné plátno</h3>
+            <div class="flex gap-3 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm text-gray-600 mb-1">Šířka (px)</label>
+                    <input type="number" id="blankWidth" placeholder="500" 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm text-gray-600 mb-1">Výška (px)</label>
+                    <input type="number" id="blankHeight" placeholder="500" 
+                           class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+                <button id="createBlankBtn" 
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                    Vytvořit
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -287,29 +305,22 @@
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
 
-        // Převést na blob a odeslat na server
-        canvas.toBlob(async (blob) => {
+        // Převést na blob a odeslat na server pomocí standardního formuláře
+        canvas.toBlob((blob) => {
             const formData = new FormData();
-            formData.append('image', blob, 'blank.png');
-
-            try {
-                const response = await fetch('{{ route("upload") }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: formData
-                });
-
-                if (response.redirected) {
-                    window.location.href = response.url;
-                } else {
-                    const data = await response.json();
-                    console.error('Chyba:', data);
-                }
-            } catch (error) {
-                console.error('Chyba při nahrávání:', error);
-            }
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            
+            // Vytvořit File objekt z blobu
+            const file = new File([blob], 'blank.png', { type: 'image/png' });
+            
+            // Vytvořit nový DataTransfer pro nastavení souborů do inputu
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Odeslat formulář
+            form.submit();
         }, 'image/png');
     }
 
