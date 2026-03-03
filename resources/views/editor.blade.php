@@ -821,7 +821,7 @@
                 Smazat
             </button>
         </div>
-        <canvas id="canvas" class="border border-gray-300 shadow-lg"></canvas>
+        <canvas id="canvas" class="border border-gray-300 shadow-lg" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;"></canvas>
         
         <!-- Kontextové menu -->
         <div id="contextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
@@ -3923,6 +3923,31 @@ document.getElementById('toggleGridBtn').addEventListener('click', function() {
     if (gridEnabled) {
         drawGrid();
     } else {
+        removeGrid();
+    }
+});
+
+// Vypnout mřížku při pohybu/transformaci obrázku
+canvas.on('object:moving', function(e) {
+    if (e.target === currentImage && gridEnabled) {
+        gridEnabled = false;
+        document.getElementById('toggleGridBtn').classList.remove('active');
+        removeGrid();
+    }
+});
+
+canvas.on('object:scaling', function(e) {
+    if (e.target === currentImage && gridEnabled) {
+        gridEnabled = false;
+        document.getElementById('toggleGridBtn').classList.remove('active');
+        removeGrid();
+    }
+});
+
+canvas.on('object:rotating', function(e) {
+    if (e.target === currentImage && gridEnabled) {
+        gridEnabled = false;
+        document.getElementById('toggleGridBtn').classList.remove('active');
         removeGrid();
     }
 });
