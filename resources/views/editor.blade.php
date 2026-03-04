@@ -1971,7 +1971,7 @@ canvas.on('mouse:down', (o) => {
 
         if (drawMode === 'triangle') {
             triangle = new fabric.Polygon([
-                { x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }
+                { x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }
             ], {
                 left: origX, top: origY, fill: getFillColor(), stroke: getStrokeColor(), strokeWidth: width,
                 strokeDashArray: getDashFromUIForWidth(width), strokeUniform: true,
@@ -2102,10 +2102,9 @@ canvas.on('mouse:down', (o) => {
         }
 
         if (drawMode === 'cross') {
-            const thinWidth = Math.max(0.5, width * 0.05); // Základní šířka čáry
             cross = new fabric.Group([
-                new fabric.Line([0, 0, 100, 100], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' }),
-                new fabric.Line([100, 0, 0, 100], { stroke: getStrokeColor(), strokeWidth: thinWidth, strokeLineCap: 'round' })
+                new fabric.Line([0, 0, 100, 100], { stroke: getStrokeColor(), strokeWidth: width, strokeLineCap: 'round' }),
+                new fabric.Line([100, 0, 0, 100], { stroke: getStrokeColor(), strokeWidth: width, strokeLineCap: 'round' })
             ], {
                 left: origX,
                 top: origY,
@@ -2200,14 +2199,14 @@ canvas.on('mouse:move', (o) => {
             const h = pointer.y - origY;
             const absW = Math.abs(w);
             const absH = Math.abs(h);
-            const left = w < 0 ? pointer.x : origX;
-            const top = h < 0 ? pointer.y : origY;
             triangle.set({
-                points: [ { x: absW / 2, y: 0 }, { x: absW, y: absH }, { x: 0, y: absH } ],
-                left: left,
-                top: top
+                points: [ { x: absW / 2, y: 0 }, { x: absW, y: absH }, { x: 0, y: absH } ]
             });
             triangle._setPositionDimensions({});
+            triangle.set({
+                left: (w < 0 ? pointer.x : origX) + triangle.width / 2,
+                top: (h < 0 ? pointer.y : origY) + triangle.height / 2
+            });
             triangle.setCoords();
         }
 
@@ -2216,14 +2215,14 @@ canvas.on('mouse:move', (o) => {
             const h = pointer.y - origY;
             const absW = Math.abs(w);
             const absH = Math.abs(h);
-            const left = w < 0 ? pointer.x : origX;
-            const top = h < 0 ? pointer.y : origY;
             rightTriangle.set({
-                points: [ { x: 0, y: 0 }, { x: absW, y: absH }, { x: 0, y: absH } ],
-                left: left,
-                top: top
+                points: [ { x: 0, y: 0 }, { x: absW, y: absH }, { x: 0, y: absH } ]
             });
             rightTriangle._setPositionDimensions({});
+            rightTriangle.set({
+                left: (w < 0 ? pointer.x : origX) + rightTriangle.width / 2,
+                top: (h < 0 ? pointer.y : origY) + rightTriangle.height / 2
+            });
             rightTriangle.setCoords();
         }
 
@@ -2238,18 +2237,22 @@ canvas.on('mouse:move', (o) => {
         }
 
         if (drawMode === 'star') {
-            const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY));
+            const w = pointer.x - origX;
+            const h = pointer.y - origY;
+            const size = Math.max(Math.abs(w), Math.abs(h));
             const points = [];
             const spikes = 5;
-            const centerX = size / 2;
-            const centerY = size / 2;
             for (let i = 0; i < spikes * 2; i++) {
                 const radius = i % 2 === 0 ? size / 2 : size / 4;
                 const angle = (i * Math.PI) / spikes - Math.PI / 2;
-                points.push({ x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius });
+                points.push({ x: size / 2 + Math.cos(angle) * radius, y: size / 2 + Math.sin(angle) * radius });
             }
             star.set({ points });
             star._setPositionDimensions({});
+            star.set({
+                left: (w < 0 ? pointer.x : origX) + star.width / 2,
+                top: (h < 0 ? pointer.y : origY) + star.height / 2
+            });
             star.setCoords();
         }
 
@@ -2290,16 +2293,20 @@ canvas.on('mouse:move', (o) => {
         }
         
         if (drawMode === 'hexagon') {
-            const size = Math.max(Math.abs(pointer.x - origX), Math.abs(pointer.y - origY)) / 2;
+            const w = pointer.x - origX;
+            const h = pointer.y - origY;
+            const size = Math.max(Math.abs(w), Math.abs(h)) / 2;
             const hexPoints = [];
-            const centerX = size;
-            const centerY = size;
             for (let i = 0; i < 6; i++) {
                 const angle = (Math.PI / 3) * i - Math.PI / 6;
-                hexPoints.push({ x: centerX + Math.cos(angle) * size, y: centerY + Math.sin(angle) * size });
+                hexPoints.push({ x: size + Math.cos(angle) * size, y: size + Math.sin(angle) * size });
             }
             hexagon.set({ points: hexPoints });
             hexagon._setPositionDimensions({});
+            hexagon.set({
+                left: (w < 0 ? pointer.x : origX) + hexagon.width / 2,
+                top: (h < 0 ? pointer.y : origY) + hexagon.height / 2
+            });
             hexagon.setCoords();
         }
 
@@ -4081,21 +4088,39 @@ document.addEventListener('keydown', (e) => {
         const activeObj = canvas.getActiveObject();
         if (!activeObj) return;
         
-        // Nikdy nemazat obrázek
-        if (activeObj === currentImage) return;
-
         // Pokud je to text v editačním režimu, necháme Fabric.js zpracovat klávesu
         if ((activeObj.type === 'i-text' || activeObj.type === 'textbox') && activeObj.isEditing) {
             return; // Nemazat objekt, nechat smazat písmeno
         }
 
+        // Hromadné mazání - pokud je vybrána skupina (ActiveSelection)
+        if (activeObj.type === 'activeSelection') {
+            const objectsToRemove = activeObj.getObjects().filter(obj => {
+                // Nikdy nemazat hlavní obrázek
+                if (obj === currentImage) return false;
+                // Nekontrolovat blank, protože hlavní obrázek už je vyfiltrován
+                const isBlank = obj._element?.src?.includes('blank_');
+                return !isBlank;
+            });
+            
+            canvas.discardActiveObject(); // Zrušit výběr
+            objectsToRemove.forEach(obj => canvas.remove(obj));
+            canvas.requestRenderAll();
+            saveHistoryState('delete multiple');
+            return;
+        }
+        
+        // Mazání jednotlivého objektu
+        // Nikdy nemazat hlavní obrázek
+        if (activeObj === currentImage) return;
+
         const isBlank = activeObj._element?.src?.includes('blank_');
         if (!isBlank) {
             canvas.remove(activeObj);
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            saveHistoryState('delete');
         }
-
-        canvas.discardActiveObject();
-        canvas.requestRenderAll();
     }
 });
 
