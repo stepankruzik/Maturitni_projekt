@@ -1,12 +1,13 @@
 <x-layout :hideNav="true">
-    <div class="flex gap-2 mb-3">
-    <button id="undoBtn" class="px-3 py-1 bg-gray-700 text-white rounded transition-all duration-150 active:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Zpět">
+    <div class="min-h-screen bg-slate-900/95 px-3 py-3 text-white md:px-4">
+    <div class="mb-3 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-800/70 p-2 shadow-lg backdrop-blur-md">
+    <button id="undoBtn" class="rounded-xl bg-slate-700 px-3 py-1 text-white transition-all duration-150 hover:bg-slate-600 active:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40" disabled title="Zpět">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo2-icon lucide-undo-2 w-5 h-5 inline">
             <path d="M9 14 4 9l5-5"/>
             <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>
         </svg>
     </button>
-    <button id="redoBtn" class="px-3 py-1 bg-gray-700 text-white rounded transition-all duration-150 active:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Dopředu">
+    <button id="redoBtn" class="rounded-xl bg-slate-700 px-3 py-1 text-white transition-all duration-150 hover:bg-slate-600 active:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40" disabled title="Dopředu">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-redo2-icon lucide-redo-2 w-5 h-5 inline" style="transform: scaleX(-1);">
             <path d="M9 14 4 9l5-5"/>
             <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>
@@ -14,7 +15,7 @@
     </button>
 </div>
 
-    <div class="flex gap-2 mb-4">
+    <div class="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-slate-800/60 p-2 shadow-lg backdrop-blur-md">
         <button class="tab-btn px-3 py-1 bg-blue-500 text-white rounded" data-target="panelResize">Resize/Ořez</button>
         <button class="tab-btn px-3 py-1 bg-green-500 text-white rounded" data-target="panelFilters">Filtry</button>
         <button class="tab-btn px-3 py-1 bg-orange-500 text-white rounded" data-target="panelDownload">Export</button>
@@ -32,9 +33,9 @@
         <input type="file" id="addImageInput" accept="image/*" class="hidden">
     </div>
 
-    <div class="flex h-screen">
+    <div class="flex flex-col gap-4 lg:min-h-[calc(100vh-10rem)] lg:flex-row">
     <!-- Sidebar vlevo -->
-    <div class="w-72 bg-gray-100 border-r border-gray-300 p-4 overflow-y-auto">
+    <div class="w-full shrink-0 overflow-y-auto rounded-2xl border border-white/30 bg-white/80 p-4 text-slate-900 shadow-2xl backdrop-blur-md lg:max-h-[calc(100vh-10rem)] lg:w-72 xl:w-80">
         <h2 class="text-lg font-semibold mb-4">Úpravy obrázku</h2>
 
 
@@ -639,10 +640,13 @@
 </div>
 
     <!-- Canvas vpravo -->
-    <div class="flex-1 flex justify-center items-center bg-gray-50 relative">
+    <div id="canvasWorkspace" class="relative min-h-[60vh] min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-[#1e1e1e] shadow-2xl lg:min-h-[calc(100vh-10rem)]">
         <!-- HUD pro měření čáry -->
-        <div id="lineHUD" class="hidden fixed bg-gray-900 text-white text-sm px-3 py-1 rounded-lg shadow-lg z-50 pointer-events-none font-mono whitespace-nowrap">
+        <div id="lineHUD" class="hidden fixed z-50 rounded-xl border border-emerald-300/30 bg-slate-950/92 px-3.5 py-2 text-sm font-mono font-semibold text-emerald-50 shadow-2xl pointer-events-none whitespace-nowrap backdrop-blur-md">
             <span id="lineHUDText">0 px | 0°</span>
+        </div>
+        <div class="pointer-events-none absolute bottom-3 left-3 z-40 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-xs text-gray-200 shadow-lg backdrop-blur-md">
+            Kolečko = zoom · Alt / střední tlačítko = posun
         </div>
         <!-- Plovoucí toolbar pro kreslení -->
         <div id="drawFloatingToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl px-3 py-2.5 z-50 flex gap-3 items-center">
@@ -821,7 +825,7 @@
                 Smazat
             </button>
         </div>
-        <canvas id="canvas" class="border border-gray-300 shadow-lg" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;"></canvas>
+        <canvas id="canvas" class="block" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;"></canvas>
         
         <!-- Kontextové menu -->
         <div id="contextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
@@ -888,6 +892,7 @@
 const canvas = new fabric.Canvas('canvas', {
     preserveObjectStacking: true  // Zachová pořadí vrstev při výběru objektu
 });
+const canvasWorkspace = document.getElementById('canvasWorkspace');
 
 // Toast notifikačního systému
 function showToast(message, type = 'info', duration = 4000) {
@@ -1010,18 +1015,7 @@ function cleanupAfterRestore() {
         }
     });
 
-    // Obnov velikost canvasu a viewportTransform
-    canvas.setWidth(MAX_CANVAS_WIDTH);
-    canvas.setHeight(MAX_CANVAS_HEIGHT);
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-
-    // Pokud je obrázek, centrovat ho
-    const img = canvas.getObjects().find(o => o.type === 'image');
-    if (img) {
-        img.left = canvas.width / 2;
-        img.top = canvas.height / 2;
-        img.setCoords();
-    }
+    resetCanvasToWorkspaceSize(false);
 
     canvas.requestRenderAll();
     updateUndoRedoButtons();
@@ -1035,13 +1029,13 @@ function restoreFromString(str) {
     // Po načtení z historie znovu najdi obrázek a nastav currentImage
     currentImage = canvas.getObjects().find(o => o.type === 'image') || null;
     HISTORY.isRestoring = false;
-    cleanupAfterRestore();
-    // Oprav pozici obrázku pokud existuje
-    if (currentImage) {
-      fitObjectToViewport(currentImage);
-    }
-    // Vždy aktualizuj stav tlačítek
-    updateUndoRedoButtons();
+    requestAnimationFrame(() => {
+      cleanupAfterRestore();
+      if (currentImage) {
+        fitObjectToViewport(currentImage);
+      }
+      updateUndoRedoButtons();
+    });
   }, (o, object) => {
 
   });
@@ -1074,14 +1068,181 @@ function updateUndoRedoButtons() {
 let currentImage = null;
 
 let cropRect = null;
+let cropTargetImage = null;
 let mode = 'resize';
-const MAX_CANVAS_WIDTH = 900;
-const MAX_CANVAS_HEIGHT = 600;
+const MIN_WORKSPACE_WIDTH = 320;
+const MIN_WORKSPACE_HEIGHT = 320;
+const VIEWPORT_PADDING = 64;
+const MIN_ZOOM = 0.05;
+const MAX_ZOOM = 8;
 let previousAngle = 0;
 //kresleni
 let isPanning = false;
 let isDown = false;
 let lastPosX, lastPosY;
+let workspaceResizeFrame = null;
+let panStateBeforeDrag = {
+    selection: true,
+    skipTargetFind: false,
+};
+
+function getWorkspaceDimensions() {
+    const rect = canvasWorkspace?.getBoundingClientRect();
+    const fallbackWidth = Math.max(window.innerWidth - 48, MIN_WORKSPACE_WIDTH);
+    const fallbackHeight = Math.max(window.innerHeight - 160, MIN_WORKSPACE_HEIGHT);
+
+    return {
+        width: Math.max(Math.floor(rect?.width || fallbackWidth), MIN_WORKSPACE_WIDTH),
+        height: Math.max(Math.floor(rect?.height || fallbackHeight), MIN_WORKSPACE_HEIGHT),
+    };
+}
+
+function styleCanvasWrapper() {
+    if (!canvas.wrapperEl) return;
+
+    Object.assign(canvas.wrapperEl.style, {
+        position: 'absolute',
+        inset: '0px',
+        width: `${canvas.getWidth()}px`,
+        height: `${canvas.getHeight()}px`,
+    });
+}
+
+function getViewportCenterPoint(width = canvas.getWidth(), height = canvas.getHeight()) {
+    const screenCenter = new fabric.Point(width / 2, height / 2);
+    return fabric.util.transformPoint(screenCenter, fabric.util.invertTransform(canvas.viewportTransform));
+}
+
+function centerViewportOnPoint(point, zoom = canvas.getZoom()) {
+    const safeZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom || 1));
+    canvas.setViewportTransform([
+        safeZoom,
+        0,
+        0,
+        safeZoom,
+        (canvas.getWidth() / 2) - (point.x * safeZoom),
+        (canvas.getHeight() / 2) - (point.y * safeZoom),
+    ]);
+}
+
+function restoreCanvasCursor() {
+    if (drawMode === 'eraser') {
+        canvas.defaultCursor = 'none';
+        canvas.hoverCursor = 'none';
+        return;
+    }
+
+    if (drawMode && drawMode !== 'select' && drawMode !== 'textSelect') {
+        canvas.defaultCursor = 'crosshair';
+        canvas.hoverCursor = 'crosshair';
+        return;
+    }
+
+    canvas.defaultCursor = 'default';
+    canvas.hoverCursor = 'move';
+}
+
+function refreshFloatingToolbars() {
+    const activeObject = canvas.getActiveObject();
+    const textToolbarEl = document.getElementById('textToolbar');
+
+    if (
+        activeObject &&
+        (activeObject.type === 'i-text' || activeObject.type === 'textbox') &&
+        textToolbarEl &&
+        !textToolbarEl.classList.contains('hidden')
+    ) {
+        showTextToolbar(activeObject);
+        return;
+    }
+
+    updateDrawFloatingToolbarVisibility();
+}
+
+function resetCanvasToWorkspaceSize(preserveViewport = true) {
+    const { width, height } = getWorkspaceDimensions();
+    const viewportCenter = preserveViewport ? getViewportCenterPoint() : null;
+    const zoom = canvas.getZoom() || 1;
+
+    canvas.setWidth(width);
+    canvas.setHeight(height);
+    styleCanvasWrapper();
+
+    if (preserveViewport && viewportCenter) {
+        centerViewportOnPoint(viewportCenter, zoom);
+    } else {
+        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    }
+
+    canvas.calcOffset();
+    refreshFloatingToolbars();
+    canvas.requestRenderAll();
+}
+
+function scheduleCanvasResize(preserveViewport = true) {
+    if (workspaceResizeFrame) {
+        cancelAnimationFrame(workspaceResizeFrame);
+    }
+
+    workspaceResizeFrame = requestAnimationFrame(() => {
+        workspaceResizeFrame = null;
+        resetCanvasToWorkspaceSize(preserveViewport);
+    });
+}
+
+function startCanvasPan(e) {
+    panStateBeforeDrag = {
+        selection: canvas.selection,
+        skipTargetFind: canvas.skipTargetFind,
+    };
+
+    isPanning = true;
+    lastPosX = e.clientX;
+    lastPosY = e.clientY;
+    canvas.selection = false;
+    canvas.skipTargetFind = true;
+    canvas.defaultCursor = 'grabbing';
+    canvas.hoverCursor = 'grabbing';
+}
+
+function endCanvasPan() {
+    if (!isPanning) return;
+
+    isPanning = false;
+    canvas.selection = panStateBeforeDrag.selection;
+    canvas.skipTargetFind = panStateBeforeDrag.skipTargetFind;
+    restoreCanvasCursor();
+    canvas.calcOffset();
+    canvas.requestRenderAll();
+}
+
+if (canvas.upperCanvasEl) {
+    canvas.upperCanvasEl.addEventListener('mousedown', (event) => {
+        if (event.button === 1) {
+            event.preventDefault();
+        }
+    });
+}
+
+window.addEventListener('mouseup', () => {
+    endCanvasPan();
+});
+
+window.addEventListener('resize', () => {
+    scheduleCanvasResize(true);
+});
+
+if (typeof ResizeObserver !== 'undefined' && canvasWorkspace) {
+    const workspaceObserver = new ResizeObserver(() => {
+        scheduleCanvasResize(true);
+    });
+    workspaceObserver.observe(canvasWorkspace);
+}
+
+requestAnimationFrame(() => {
+    resetCanvasToWorkspaceSize(false);
+    restoreCanvasCursor();
+});
 
 let drawMode = null; // 'line' | 'circle' | 'angle'
 let line, circle, rect, triangle, rightTriangle, ellipse, star, heart, arrow, speechBubble, roundedSpeechBubble, roundedRect, curvedArrow, hexagon, cross;
@@ -1264,19 +1425,45 @@ function findSnapPoint(pointer) {
     return closest;
 }
 
-// Zobrazí snap indikátor (zelený kroužek)
+// Zobrazí výrazný snap indikátor
 function showSnapIndicator(pos) {
     if (!snapIndicator) {
-        snapIndicator = new fabric.Circle({
-            radius: 6,
-            fill: 'rgba(34, 197, 94, 0.4)',
-            stroke: '#22c55e',
-            strokeWidth: 2,
+        snapIndicator = new fabric.Group([
+            new fabric.Circle({
+                radius: 11,
+                fill: 'rgba(255, 255, 255, 0.14)',
+                stroke: 'rgba(255, 255, 255, 0.95)',
+                strokeWidth: 3,
+                originX: 'center',
+                originY: 'center'
+            }),
+            new fabric.Circle({
+                radius: 7,
+                fill: 'rgba(16, 185, 129, 0.35)',
+                stroke: '#10b981',
+                strokeWidth: 3,
+                originX: 'center',
+                originY: 'center'
+            }),
+            new fabric.Circle({
+                radius: 2.5,
+                fill: '#ecfdf5',
+                originX: 'center',
+                originY: 'center'
+            })
+        ], {
             selectable: false,
             evented: false,
             excludeFromExport: true,
             originX: 'center',
-            originY: 'center'
+            originY: 'center',
+            objectCaching: false,
+            shadow: new fabric.Shadow({
+                color: 'rgba(16, 185, 129, 0.65)',
+                blur: 16,
+                offsetX: 0,
+                offsetY: 0,
+            })
         });
         canvas.add(snapIndicator);
     }
@@ -1465,6 +1652,11 @@ function snapLineMouseDown(e) {
     const snap = findSnapPoint(pointer);
     
     snapLineStartPoint = snap ? { x: snap.x, y: snap.y } : { x: pointer.x, y: pointer.y };
+    if (snap) {
+        showSnapIndicator(snapLineStartPoint);
+    } else {
+        hideSnapIndicator();
+    }
     
     const width = parseInt(document.getElementById('brushWidth').value);
     
@@ -1876,6 +2068,16 @@ canvas.on('mouse:down', (o) => {
 
     const e = o.e;
     const pointer = canvas.getPointer(e);
+    const activeObject = canvas.getActiveObject();
+    const isEditingText = activeObject &&
+        (activeObject.type === 'i-text' || activeObject.type === 'textbox') &&
+        activeObject.isEditing;
+
+    if ((e.altKey || e.button === 1) && !isEditingText) {
+        e.preventDefault();
+        startCanvasPan(e);
+        return;
+    }
 
     if (snapLineIsActive) {
         snapLineMouseDown(o);
@@ -2136,6 +2338,17 @@ canvas.on('path:created', function (e) {
 
 canvas.on('mouse:move', (o) => {
     const e = o.e;
+    if (isPanning) {
+        const vpt = canvas.viewportTransform;
+        vpt[4] += e.clientX - lastPosX;
+        vpt[5] += e.clientY - lastPosY;
+        canvas.requestRenderAll();
+
+        lastPosX = e.clientX;
+        lastPosY = e.clientY;
+        return;
+    }
+
     const pointer = canvas.getPointer(e);
 
     if (snapLineIsActive) {
@@ -2328,21 +2541,16 @@ canvas.on('mouse:move', (o) => {
         canvas.requestRenderAll();
         return;
     }
-
-    if (isPanning) {
-        const vpt = canvas.viewportTransform;
-        vpt[4] += e.clientX - lastPosX;
-        vpt[5] += e.clientY - lastPosY;
-        canvas.requestRenderAll();
-
-        lastPosX = e.clientX;
-        lastPosY = e.clientY;
-    }
 });
 
 canvas.on('mouse:up', (o) => {
     if (snapLineIsActive) {
         snapLineMouseUp(o);
+        return;
+    }
+
+    if (isPanning) {
+        endCanvasPan();
         return;
     }
 
@@ -2447,6 +2655,21 @@ canvas.on('mouse:up', (o) => {
         saveHistoryState('draw-finished');
         canvas.requestRenderAll();
     }
+});
+
+canvas.on('mouse:wheel', (o) => {
+    const e = o.e;
+    let zoom = canvas.getZoom();
+
+    zoom *= 0.999 ** e.deltaY;
+    zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+
+    const pointer = new fabric.Point(e.offsetX, e.offsetY);
+    canvas.zoomToPoint(pointer, zoom);
+
+    e.preventDefault();
+    e.stopPropagation();
+    canvas.requestRenderAll();
 });
 
 // Double-click na čáru aktivuje endpoint controls
@@ -2723,7 +2946,7 @@ canvas.on("object:rotating", function(e) {
 
 
 // Načtení obrázku z URL poslané z indexu
-const imageUrl = @json(request('path'));
+const imageUrl = @json($imagePath ?? null);
 if (imageUrl) loadImage(imageUrl);
 
 // Funkce pro načtení obrázku do Fabric canvasu
@@ -2782,12 +3005,10 @@ if (isBlank && gridEnabled) {
 // Přizpůsobení obrázku canvasu
 function fitImageToCanvas(img) {
     img.set({ scaleX: 1, scaleY: 1 });
-    canvas.setWidth(MAX_CANVAS_WIDTH);
-    canvas.setHeight(MAX_CANVAS_HEIGHT);
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    resetCanvasToWorkspaceSize(false);
 
-    img.left = canvas.width / 2;
-    img.top = canvas.height / 2;
+    img.left = canvas.getWidth() / 2;
+    img.top = canvas.getHeight() / 2;
     img.setCoords();
     canvas.requestRenderAll();
 }
@@ -2796,129 +3017,168 @@ function fitImageToCanvas(img) {
 function fitObjectToViewport(obj) {
     if (!obj) return;
 
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    canvas.setWidth(MAX_CANVAS_WIDTH);
-    canvas.setHeight(MAX_CANVAS_HEIGHT);
+    resetCanvasToWorkspaceSize(false);
     canvas.renderAll();
 
     const bbox = obj.getBoundingRect(true);
-    const scaleX = (canvas.width - 40) / bbox.width;
-    const scaleY = (canvas.height - 40) / bbox.height;
+    if (!bbox.width || !bbox.height) return;
+
+    const padding = Math.min(120, Math.max(VIEWPORT_PADDING, Math.round(Math.min(canvas.getWidth(), canvas.getHeight()) * 0.08)));
+    const viewportWidth = Math.max(canvas.getWidth() - (padding * 2), 1);
+    const viewportHeight = Math.max(canvas.getHeight() - (padding * 2), 1);
+    const scaleX = viewportWidth / bbox.width;
+    const scaleY = viewportHeight / bbox.height;
     const scale = Math.min(scaleX, scaleY, 1);
 
-    const center = new fabric.Point(canvas.width / 2, canvas.height / 2);
+    const center = new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2);
     canvas.zoomToPoint(center, scale);
 
     const objCenter = obj.getCenterPoint();
     const zoom = canvas.getZoom();
-    canvas.viewportTransform[4] = (canvas.width / 2) - (objCenter.x * zoom);
-    canvas.viewportTransform[5] = (canvas.height / 2) - (objCenter.y * zoom);
+    canvas.viewportTransform[4] = (canvas.getWidth() / 2) - (objCenter.x * zoom);
+    canvas.viewportTransform[5] = (canvas.getHeight() / 2) - (objCenter.y * zoom);
 
     canvas.requestRenderAll();
+}
+
+function getCropTargetImage() {
+    const activeObject = canvas.getActiveObject();
+
+    if (activeObject && activeObject.type === 'image') {
+        return activeObject;
+    }
+
+    if (activeObject && activeObject.type === 'activeSelection') {
+        const selectedImage = activeObject.getObjects().find(obj => obj.type === 'image');
+        if (selectedImage) return selectedImage;
+    }
+
+    return currentImage;
+}
+
+function exitCropMode() {
+    if (cropRect) {
+        canvas.remove(cropRect);
+        cropRect = null;
+    }
+
+    cropTargetImage = null;
+    mode = 'resize';
+    document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
+    canvas.selection = true;
+}
+
+function getCropDataForImage(targetImage, rect) {
+    if (!targetImage || !rect) return null;
+
+    const inverseMatrix = fabric.util.invertTransform(targetImage.calcTransformMatrix());
+    const localPoints = rect.getCoords().map(point => {
+        return fabric.util.transformPoint(new fabric.Point(point.x, point.y), inverseMatrix);
+    });
+
+    const localXs = localPoints.map(point => point.x + (targetImage.width / 2));
+    const localYs = localPoints.map(point => point.y + (targetImage.height / 2));
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+    const left = clamp(Math.floor(Math.min(...localXs)), 0, targetImage.width);
+    const top = clamp(Math.floor(Math.min(...localYs)), 0, targetImage.height);
+    const right = clamp(Math.ceil(Math.max(...localXs)), 0, targetImage.width);
+    const bottom = clamp(Math.ceil(Math.max(...localYs)), 0, targetImage.height);
+
+    if (right <= left || bottom <= top) {
+        return null;
+    }
+
+    const localCenter = new fabric.Point(
+        ((left + right) / 2) - (targetImage.width / 2),
+        ((top + bottom) / 2) - (targetImage.height / 2)
+    );
+    const canvasCenter = fabric.util.transformPoint(localCenter, targetImage.calcTransformMatrix());
+
+    return {
+        cropX: (targetImage.cropX || 0) + left,
+        cropY: (targetImage.cropY || 0) + top,
+        width: Math.max(1, right - left),
+        height: Math.max(1, bottom - top),
+        left: canvasCenter.x,
+        top: canvasCenter.y,
+    };
 }
 
 // Resize / Crop
 document.getElementById('toggleMode').addEventListener('click', () => {
     if (mode === 'resize') {
+        const targetImage = getCropTargetImage();
+        if (!targetImage) return;
+
         mode = 'crop';
+        cropTargetImage = targetImage;
         canvas.selection = false;
         document.getElementById('toggleMode').textContent = 'Režim: Ořez';
-        if (!currentImage) return;
 
         cropRect = new fabric.Rect({
-            left: currentImage.left,
-            top: currentImage.top,
-            width: currentImage.width * currentImage.scaleX,
-            height: currentImage.height * currentImage.scaleY,
+            left: targetImage.left,
+            top: targetImage.top,
+            width: targetImage.width * targetImage.scaleX,
+            height: targetImage.height * targetImage.scaleY,
             fill: 'rgba(0,0,0,0.3)',
             originX: 'center',
             originY: 'center',
-            angle: currentImage.angle,
+            angle: targetImage.angle,
             selectable: true,
             hasBorders: true,
-            cornerStyle: 'circle'
+            cornerStyle: 'circle',
+            lockRotation: true,
+            excludeFromExport: true,
         });
 
         canvas.add(cropRect);
+        cropRect.bringToFront();
         canvas.setActiveObject(cropRect);
     } else {
-        mode = 'resize';
-        document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
-        if (cropRect) canvas.remove(cropRect);
-        canvas.selection = true;
+        exitCropMode();
+        canvas.requestRenderAll();
     }
 });
 
-// Crop obrázku - ořízne celý canvas včetně všech vrstev
+// Crop obrázku - ořízne jen vybraný obrázek, ne celý canvas
 document.getElementById('cropBtn').addEventListener('click', async () => {
-    if (!currentImage || !cropRect) return;
+    const targetImage = cropTargetImage || getCropTargetImage();
+    if (!targetImage || !cropRect) return;
 
     historyBatch = true;
-    const rect = cropRect;
+    const cropData = getCropDataForImage(targetImage, cropRect);
 
-    // Získání hranice crop oblasti v souřadnicích canvasu
-    const cropBounds = rect.getBoundingRect(true);
-    const cropLeft = cropBounds.left;
-    const cropTop = cropBounds.top;
-    const cropWidth = cropBounds.width;
-    const cropHeight = cropBounds.height;
+    if (!cropData) {
+        historyBatch = false;
+        showToast('Oblast ořezu je mimo vybraný obrázek.', 'error');
+        return;
+    }
 
-    // Skrýt cropRect a mřížku před exportem
-    rect.visible = false;
-    const objectsToHide = canvas.getObjects().filter(obj => obj.excludeFromExport || obj.isGrid);
-    objectsToHide.forEach(obj => obj.visible = false);
+    targetImage.set({
+        cropX: cropData.cropX,
+        cropY: cropData.cropY,
+        width: cropData.width,
+        height: cropData.height,
+        left: cropData.left,
+        top: cropData.top,
+    });
+    targetImage.dirty = true;
+    targetImage.setCoords();
+
+    if (targetImage === currentImage) {
+        originalImageWidth = cropData.width;
+        originalImageHeight = cropData.height;
+        fitObjectToViewport(targetImage);
+    }
+
+    exitCropMode();
+    canvas.setActiveObject(targetImage);
+    updateImageSize();
     canvas.requestRenderAll();
 
-    // Použít Fabric.js toDataURL s crop parametry - ořízne celý canvas včetně všech vrstev
-    const croppedDataURL = canvas.toDataURL({
-        format: 'png',
-        left: cropLeft,
-        top: cropTop,
-        width: cropWidth,
-        height: cropHeight,
-        multiplier: 1
-    });
-
-    // Vrátit viditelnost objektů (pro případ, že by crop selhal)
-    objectsToHide.forEach(obj => obj.visible = true);
-
-    // Načíst oříznutý obrázek
-    fabric.Image.fromURL(croppedDataURL, newImg => {
-        // Vymazat canvas (všechny objekty)
-        canvas.clear();
-
-        // Nastavit nový obrázek jako background
-        // Tento obrázek už obsahuje všechny vrstvy (background + overlay + kresby + text)
-        currentImage = newImg;
-        newImg.set({
-            originX: 'center',
-            originY: 'center',
-            selectable: true,
-            hasRotatingPoint: true,
-            cornerStyle: 'circle',
-            layer: 'background'
-        });
-
-        canvas.add(newImg);
-        newImg.sendToBack();
-
-        // Reset viewport a přizpůsobit obrázek
-        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-        fitImageToCanvas(newImg);
-        fitObjectToViewport(newImg);
-        updateImageSize();
-
-        canvas.requestRenderAll();
-
-        // Reset režimu
-        cropRect = null;
-        mode = 'resize';
-        document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
-        canvas.selection = true;
-
-        historyBatch = false;
-        saveHistoryState('crop');
-    });
+    historyBatch = false;
+    saveHistoryState('crop');
 });
 
 
@@ -3575,6 +3835,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         if (cropRect) {
             canvas.remove(cropRect);
             cropRect = null;
+            cropTargetImage = null;
             mode = 'resize';
             document.getElementById('toggleMode').textContent = 'Režim: Změnit velikost';
         }
@@ -5544,4 +5805,5 @@ window.addEventListener('beforeunload', function (e) { // alert při opuštění
 });
 </script>
 
+    </div>
 </x-layout>
