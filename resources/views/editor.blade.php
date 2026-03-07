@@ -3068,38 +3068,112 @@ function exitCropMode() {
     canvas.selection = true;
 }
 
-function getCropDataForImage(targetImage, rect) {
-    if (!targetImage || !rect) return null;
+function getImageLocalBoundsForRect(targetImage, rect) {
+    if (!targetImage || !rect || !targetImage.width || !targetImage.height) return null;
 
-    const inverseMatrix = fabric.util.invertTransform(targetImage.calcTransformMatrix());
-    const localPoints = rect.getCoords().map(point => {
-        return fabric.util.transformPoint(new fabric.Point(point.x, point.y), inverseMatrix);
-    });
+    const relativeMatrix = fabric.util.multiplyTransformMatrices(
+        fabric.util.invertTransform(targetImage.calcTransformMatrix()),
+        rect.calcTransformMatrix()
+    );
+    const halfRectWidth = (rect.width || 0) / 2;
+    const halfRectHeight = (rect.height || 0) / 2;
+    const localPoints = [
+        new fabric.Point(-halfRectWidth, -halfRectHeight),
+        new fabric.Point(halfRectWidth, -halfRectHeight),
+        new fabric.Point(halfRectWidth, halfRectHeight),
+        new fabric.Point(-halfRectWidth, halfRectHeight),
+    ].map(point => fabric.util.transformPoint(point, relativeMatrix));
 
     const localXs = localPoints.map(point => point.x + (targetImage.width / 2));
     const localYs = localPoints.map(point => point.y + (targetImage.height / 2));
-    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-    const left = clamp(Math.floor(Math.min(...localXs)), 0, targetImage.width);
-    const top = clamp(Math.floor(Math.min(...localYs)), 0, targetImage.height);
-    const right = clamp(Math.ceil(Math.max(...localXs)), 0, targetImage.width);
-    const bottom = clamp(Math.ceil(Math.max(...localYs)), 0, targetImage.height);
+    return {
+        left: Math.min(...localXs),
+        top: Math.min(...localYs),
+        right: Math.max(...localXs),
+        bottom: Math.max(...localYs),
+    };
+}
 
-    if (right <= left || bottom <= top) {
+function clampLocalBoundsToImage(targetImage, bounds) {
+    if (!targetImage || !bounds || !targetImage.width || !targetImage.height) return null;
+
+    const imageWidth = targetImage.width;
+    const imageHeight = targetImage.height;
+    const width = Math.min(Math.max(bounds.right - bounds.left, 1), imageWidth);
+    const height = Math.min(Math.max(bounds.bottom - bounds.top, 1), imageHeight);
+    const left = Math.min(Math.max(bounds.left, 0), imageWidth - width);
+    const top = Math.min(Math.max(bounds.top, 0), imageHeight - height);
+
+    return {
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        width,
+        height,
+    };
+}
+
+function getCanvasPointFromImageLocalPoint(targetImage, localPoint) {
+    return fabric.util.transformPoint(localPoint, targetImage.calcTransformMatrix());
+}
+
+function applyLocalBoundsToCropRect(targetImage, rect, bounds) {
+    if (!targetImage || !rect || !bounds) return;
+
+    const localCenter = new fabric.Point(
+        ((bounds.left + bounds.right) / 2) - (targetImage.width / 2),
+        ((bounds.top + bounds.bottom) / 2) - (targetImage.height / 2)
+    );
+    const canvasCenter = getCanvasPointFromImageLocalPoint(targetImage, localCenter);
+
+    rect.set({
+        left: canvasCenter.x,
+        top: canvasCenter.y,
+        angle: targetImage.angle || 0,
+        width: Math.max(1, bounds.width),
+        height: Math.max(1, bounds.height),
+        scaleX: Math.abs(targetImage.scaleX || 1),
+        scaleY: Math.abs(targetImage.scaleY || 1),
+        flipX: false,
+        flipY: false,
+    });
+    rect.setCoords();
+}
+
+function constrainCropRectToTargetImage() {
+    if (!cropRect || !cropTargetImage) return;
+
+    const rawBounds = getImageLocalBoundsForRect(cropTargetImage, cropRect);
+    const bounded = clampLocalBoundsToImage(cropTargetImage, rawBounds);
+    if (!bounded) return;
+
+    applyLocalBoundsToCropRect(cropTargetImage, cropRect, bounded);
+}
+
+function getCropDataForImage(targetImage, rect) {
+    if (!targetImage || !rect) return null;
+
+    const rawBounds = getImageLocalBoundsForRect(targetImage, rect);
+    const bounded = clampLocalBoundsToImage(targetImage, rawBounds);
+    if (!bounded) return null;
+
+    if (bounded.width <= 0 || bounded.height <= 0) {
         return null;
     }
 
     const localCenter = new fabric.Point(
-        ((left + right) / 2) - (targetImage.width / 2),
-        ((top + bottom) / 2) - (targetImage.height / 2)
+        ((bounded.left + bounded.right) / 2) - (targetImage.width / 2),
+        ((bounded.top + bounded.bottom) / 2) - (targetImage.height / 2)
     );
-    const canvasCenter = fabric.util.transformPoint(localCenter, targetImage.calcTransformMatrix());
+    const canvasCenter = getCanvasPointFromImageLocalPoint(targetImage, localCenter);
 
     return {
-        cropX: (targetImage.cropX || 0) + left,
-        cropY: (targetImage.cropY || 0) + top,
-        width: Math.max(1, right - left),
-        height: Math.max(1, bottom - top),
+        cropX: (targetImage.cropX || 0) + bounded.left,
+        cropY: (targetImage.cropY || 0) + bounded.top,
+        width: Math.max(1, bounded.width),
+        height: Math.max(1, bounded.height),
         left: canvasCenter.x,
         top: canvasCenter.y,
     };
@@ -3119,9 +3193,12 @@ document.getElementById('toggleMode').addEventListener('click', () => {
         cropRect = new fabric.Rect({
             left: targetImage.left,
             top: targetImage.top,
-            width: targetImage.width * targetImage.scaleX,
-            height: targetImage.height * targetImage.scaleY,
+            width: 1,
+            height: 1,
+            scaleX: 1,
+            scaleY: 1,
             fill: 'rgba(0,0,0,0.3)',
+            strokeWidth: 0,
             originX: 'center',
             originY: 'center',
             angle: targetImage.angle,
@@ -3129,12 +3206,22 @@ document.getElementById('toggleMode').addEventListener('click', () => {
             hasBorders: true,
             cornerStyle: 'circle',
             lockRotation: true,
+            lockScalingFlip: true,
             excludeFromExport: true,
         });
 
         canvas.add(cropRect);
+        applyLocalBoundsToCropRect(targetImage, cropRect, {
+            left: 0,
+            top: 0,
+            right: targetImage.width,
+            bottom: targetImage.height,
+            width: targetImage.width,
+            height: targetImage.height,
+        });
         cropRect.bringToFront();
         canvas.setActiveObject(cropRect);
+        canvas.requestRenderAll();
     } else {
         exitCropMode();
         canvas.requestRenderAll();
@@ -3179,6 +3266,14 @@ document.getElementById('cropBtn').addEventListener('click', async () => {
 
     historyBatch = false;
     saveHistoryState('crop');
+});
+
+canvas.on('object:modified', function(e) {
+    if (e.target === cropRect && cropTargetImage) {
+        constrainCropRectToTargetImage();
+        cropRect.setCoords();
+        canvas.requestRenderAll();
+    }
 });
 
 
