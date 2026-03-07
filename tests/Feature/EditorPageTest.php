@@ -11,6 +11,9 @@ test('editor page renders canvas and filter section', function () {
     $response->assertSee('id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px] text-slate-900"', false);
     $response->assertSee('id="contextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px] text-slate-900"', false);
     $response->assertSee('Filtry');
+    $response->assertSee('Ruční vyladění');
     $response->assertSee('data-target="panelFilters"', false);
+    $response->assertSee('id="brightness"', false);
+    $response->assertDontSee('data-target="panelLevels"', false);
     $response->assertSee(json_encode(asset('uploads/test.png')), false);
 });

@@ -19,7 +19,6 @@
         <button class="tab-btn px-3 py-1 bg-blue-500 text-white rounded" data-target="panelResize">Resize/Ořez</button>
         <button class="tab-btn px-3 py-1 bg-green-500 text-white rounded" data-target="panelFilters">Filtry</button>
         <button class="tab-btn px-3 py-1 bg-orange-500 text-white rounded" data-target="panelDownload">Export</button>
-        <button class="tab-btn px-3 py-1 bg-red-500 text-white rounded" data-target="panelLevels">Úrovně</button>
         <button class="tab-btn px-3 py-1 bg-indigo-500 text-white rounded" data-target="panelDraw">Kreslení</button>
         <button class="tab-btn px-3 py-1 bg-pink-500 text-white rounded" data-target="panelText">Text</button>
         <button id="addImageBtn" class="px-3 py-1 bg-cyan-500 text-white rounded hover:bg-cyan-600 transition flex items-center gap-1" title="Přidat obrázek">
@@ -156,30 +155,51 @@
                 </label>
             </div>
         </div>
-        <div id="filterPreview" class="grid grid-cols-2 gap-2 mt-2">
-            <div class="filter-thumb-wrap" data-filter="original">
-                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
-                <span class="text-xs block text-center">Originál</span>
+        <div class="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+            <div class="mb-3">
+                <h3 class="text-sm font-bold text-gray-800">Rychlé filtry</h3>
             </div>
-            <div class="filter-thumb-wrap" data-filter="grayscale">
-                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
-                <span class="text-xs block text-center">Šedá</span>
+            <div id="filterPreview" class="grid grid-cols-2 gap-2 mt-2">
+                <div class="filter-thumb-wrap" data-filter="original">
+                    <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
+                    <span class="text-xs block text-center">Originál</span>
+                </div>
+                <div class="filter-thumb-wrap" data-filter="grayscale">
+                    <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
+                    <span class="text-xs block text-center">Šedá</span>
+                </div>
+                <div class="filter-thumb-wrap" data-filter="sepia">
+                    <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
+                    <span class="text-xs block text-center">Sépie</span>
+                </div>
+                <div class="filter-thumb-wrap" data-filter="invert">
+                    <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
+                    <span class="text-xs block text-center">Inverze</span>
+                </div>
+                <div class="filter-thumb-wrap" data-filter="blur">
+                    <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
+                    <span class="text-xs block text-center">Rozostření</span>
+                </div>
+                <div class="filter-thumb-wrap" data-filter="sharpen">
+                    <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
+                    <span class="text-xs block text-center">Zaostření</span>
+                </div>
             </div>
-            <div class="filter-thumb-wrap" data-filter="sepia">
-                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
-                <span class="text-xs block text-center">Sépie</span>
+        </div>
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+            <div class="mb-3">
+                <h3 class="text-sm font-bold text-gray-800">Ruční vyladění</h3>
             </div>
-            <div class="filter-thumb-wrap" data-filter="invert">
-                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
-                <span class="text-xs block text-center">Inverze</span>
-            </div>
-            <div class="filter-thumb-wrap" data-filter="blur">
-                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
-                <span class="text-xs block text-center">Rozostření</span>
-            </div>
-            <div class="filter-thumb-wrap" data-filter="sharpen">
-                <canvas class="filter-preview-canvas" width="100" height="75"></canvas>
-                <span class="text-xs block text-center">Zaostření</span>
+            <div class="space-y-3">
+                <label class="block text-sm font-medium text-gray-700">Jas
+                    <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0" class="mt-1 w-full">
+                </label>
+                <label class="block text-sm font-medium text-gray-700">Kontrast
+                    <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0" class="mt-1 w-full">
+                </label>
+                <label class="block text-sm font-medium text-gray-700">Sytost
+                    <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0" class="mt-1 w-full">
+                </label>
             </div>
         </div>
     </div>
@@ -220,20 +240,6 @@
                 </button>
             </div>
         </details>
-    </div>
-
-    <div id="panelLevels" class="tab-panel hidden">
-        <div class="space-y-3 mt-2">
-            <label class="flex items-center gap-2">Jas:
-                <input type="range" id="brightness" min="-1" max="1" step="0.1" value="0" class="w-full">
-            </label>
-            <label class="flex items-center gap-2">Kontrast:
-                <input type="range" id="contrast" min="-1" max="1" step="0.1" value="0" class="w-full">
-            </label>
-            <label class="flex items-center gap-2">Sytost:
-                <input type="range" id="saturation" min="-1" max="1" step="0.1" value="0" class="w-full">
-            </label>
-        </div>
     </div>
 
    <div id="panelDraw" class="tab-panel hidden">
@@ -1027,7 +1033,9 @@ function restoreFromString(str) {
   const json = JSON.parse(str);
   canvas.loadFromJSON(json, () => {
     // Po načtení z historie znovu najdi obrázek a nastav currentImage
-    currentImage = canvas.getObjects().find(o => o.type === 'image') || null;
+    currentImage = canvas.getObjects().find(o => o.type === 'image' && o.layer === 'background')
+      || canvas.getObjects().find(o => o.type === 'image')
+      || null;
     HISTORY.isRestoring = false;
     requestAnimationFrame(() => {
       cleanupAfterRestore();
@@ -1324,6 +1332,121 @@ function setLineByCanvasPoints(lineObj, p1, p2) {
     lineObj.setCoords();
 }
 
+function transformObjectLocalPoint(obj, x, y) {
+    return fabric.util.transformPoint(new fabric.Point(x, y), obj.calcTransformMatrix());
+}
+
+function transformObjectPathPoint(obj, x, y) {
+    const offsetX = obj.pathOffset ? obj.pathOffset.x : 0;
+    const offsetY = obj.pathOffset ? obj.pathOffset.y : 0;
+    return transformObjectLocalPoint(obj, x - offsetX, y - offsetY);
+}
+
+function pushSnapPoint(points, point) {
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+        return;
+    }
+
+    const alreadyExists = points.some(existing =>
+        Math.abs(existing.x - point.x) < 0.5 && Math.abs(existing.y - point.y) < 0.5
+    );
+
+    if (!alreadyExists) {
+        points.push({ x: point.x, y: point.y });
+    }
+}
+
+function extractPathSnapPoints(obj) {
+    const commands = obj.path || [];
+    const points = [];
+    let currentX = 0;
+    let currentY = 0;
+    let startX = 0;
+    let startY = 0;
+
+    for (const segment of commands) {
+        if (!segment || !segment.length) continue;
+
+        const command = segment[0];
+        const lower = command.toLowerCase();
+        const isRelative = command === lower;
+
+        const getX = (value) => isRelative ? currentX + value : value;
+        const getY = (value) => isRelative ? currentY + value : value;
+
+        if (lower === 'm') {
+            currentX = getX(segment[1]);
+            currentY = getY(segment[2]);
+            startX = currentX;
+            startY = currentY;
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'l') {
+            currentX = getX(segment[1]);
+            currentY = getY(segment[2]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'h') {
+            currentX = getX(segment[1]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'v') {
+            currentY = getY(segment[1]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'c') {
+            currentX = getX(segment[5]);
+            currentY = getY(segment[6]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 's') {
+            currentX = getX(segment[3]);
+            currentY = getY(segment[4]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'q') {
+            currentX = getX(segment[3]);
+            currentY = getY(segment[4]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 't') {
+            currentX = getX(segment[1]);
+            currentY = getY(segment[2]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'a') {
+            currentX = getX(segment[6]);
+            currentY = getY(segment[7]);
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+            continue;
+        }
+
+        if (lower === 'z') {
+            currentX = startX;
+            currentY = startY;
+            pushSnapPoint(points, transformObjectPathPoint(obj, currentX, currentY));
+        }
+    }
+
+    return points;
+}
+
 // Najde nejbližší snap bod (koncový bod existující čáry)
 function findSnapPoint(pointer) {
     const objects = canvas.getObjects().filter(o => o.layer === 'draw' && o !== snapCurrentLine);
@@ -1356,13 +1479,11 @@ function findSnapPoint(pointer) {
         }
         // Obdélníky - 4 rohy
         else if (obj.type === 'rect') {
-            const matrix = obj.calcTransformMatrix();
             const w = obj.width / 2;
             const h = obj.height / 2;
 
             for (const [lx, ly] of [[-w, -h], [w, -h], [w, h], [-w, h]]) {
-                const point = fabric.util.transformPoint({ x: lx, y: ly }, matrix);
-                snapPoints.push(point);
+                pushSnapPoint(snapPoints, transformObjectLocalPoint(obj, lx, ly));
             }
         }
         // Elipsy - 4 body
@@ -1382,22 +1503,14 @@ function findSnapPoint(pointer) {
         }
         // Polygony - všechny vrcholy
         else if (obj.type === 'polygon') {
-            const matrix = obj.calcTransformMatrix();
-            for (const point of obj.points) {
-                const transformed = fabric.util.transformPoint(point, matrix);
-                snapPoints.push(transformed);
+            for (const point of obj.points || []) {
+                pushSnapPoint(snapPoints, transformObjectPathPoint(obj, point.x, point.y));
             }
         }
-        // Path objekty - 4 body z bounding boxu
+        // Path objekty - skutečné body tvaru z path příkazů
         else if (obj.type === 'path') {
-            const matrix = obj.calcTransformMatrix();
-            const bounds = obj.getBoundingRect(false, true);
-            const w = bounds.width / 2;
-            const h = bounds.height / 2;
-
-            for (const [lx, ly] of [[0, -h], [w, 0], [0, h], [-w, 0]]) {
-                const point = fabric.util.transformPoint({ x: lx, y: ly }, matrix);
-                snapPoints.push(point);
+            for (const point of extractPathSnapPoints(obj)) {
+                pushSnapPoint(snapPoints, point);
             }
         }
         // Group objekty - 4 body z bounding boxu
@@ -2034,6 +2147,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+function isAltConstrainedShapeMode(mode) {
+    return ['rect', 'roundedRect', 'ellipse', 'circle'].includes(mode);
+}
+
+function getConstrainedDrawDelta(pointer, startX, startY, shouldConstrain) {
+    const deltaX = pointer.x - startX;
+    const deltaY = pointer.y - startY;
+
+    if (!shouldConstrain) {
+        return {
+            width: deltaX,
+            height: deltaY,
+        };
+    }
+
+    const size = Math.max(Math.abs(deltaX), Math.abs(deltaY));
+    return {
+        width: deltaX < 0 ? -size : size,
+        height: deltaY < 0 ? -size : size,
+    };
+}
+
 canvas.on('mouse:down', (o) => {
     if (isFormatPainterActive && o.target) {
         const target = o.target;
@@ -2075,8 +2210,9 @@ canvas.on('mouse:down', (o) => {
     const isEditingText = activeObject &&
         (activeObject.type === 'i-text' || activeObject.type === 'textbox') &&
         activeObject.isEditing;
+    const usesAltShapeConstraint = e.altKey && isAltConstrainedShapeMode(drawMode);
 
-    if ((e.altKey || e.button === 1) && !isEditingText) {
+    if (((e.altKey && !usesAltShapeConstraint) || e.button === 1) && !isEditingText) {
         e.preventDefault();
         startCanvasPan(e);
         return;
@@ -2395,18 +2531,19 @@ canvas.on('mouse:move', (o) => {
     }
 
     if (drawMode && isDown) {
+        const shouldConstrainShape = e.altKey && isAltConstrainedShapeMode(drawMode);
+
         if (drawMode === 'circle') {
             const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2));
             circle.set({ radius });
         }
         
         if (drawMode === 'rect') {
-            const width = pointer.x - origX;
-            const height = pointer.y - origY;
+            const { width, height } = getConstrainedDrawDelta(pointer, origX, origY, shouldConstrainShape);
             rect.set({
                 width: Math.abs(width), height: Math.abs(height),
-                left: width < 0 ? pointer.x : origX,
-                top: height < 0 ? pointer.y : origY
+                left: width < 0 ? origX + width : origX,
+                top: height < 0 ? origY + height : origY
             });
         }
         
@@ -2443,12 +2580,13 @@ canvas.on('mouse:move', (o) => {
         }
 
         if (drawMode === 'ellipse') {
-            const rx = Math.abs(pointer.x - origX) / 2;
-            const ry = Math.abs(pointer.y - origY) / 2;
+            const { width, height } = getConstrainedDrawDelta(pointer, origX, origY, shouldConstrainShape);
+            const rx = Math.abs(width) / 2;
+            const ry = Math.abs(height) / 2;
             ellipse.set({
                 rx, ry,
-                left: Math.min(pointer.x, origX),
-                top: Math.min(pointer.y, origY)
+                left: Math.min(origX, origX + width),
+                top: Math.min(origY, origY + height)
             });
         }
 
@@ -2494,12 +2632,11 @@ canvas.on('mouse:move', (o) => {
         }
 
         if (drawMode === 'roundedRect') {
-            const width = pointer.x - origX;
-            const height = pointer.y - origY;
+            const { width, height } = getConstrainedDrawDelta(pointer, origX, origY, shouldConstrainShape);
             roundedRect.set({
                 width: Math.abs(width), height: Math.abs(height),
-                left: width < 0 ? pointer.x : origX,
-                top: height < 0 ? pointer.y : origY
+                left: width < 0 ? origX + width : origX,
+                top: height < 0 ? origY + height : origY
             });
         }
         
@@ -5053,12 +5190,6 @@ document.addEventListener('click', (e) => {
 });
 
 // ========== KONTEXTOVÉ MENU ==========
-function keepCurrentImageAtBack() {
-    if (!currentImage) return;
-    if (!canvas.getObjects().includes(currentImage)) return;
-    currentImage.sendToBack();
-}
-
 function targetContainsCurrentImage(target) {
     return !!(target && (
         target === currentImage ||
@@ -5292,22 +5423,18 @@ function applyContextMenuAction(target, action) {
         case 'bringForward':
             if (containsCurrentImage) return false;
             canvas.bringForward(target);
-            keepCurrentImageAtBack();
             return true;
         case 'sendBackward':
             if (containsCurrentImage) return false;
             canvas.sendBackwards(target);
-            keepCurrentImageAtBack();
             return true;
         case 'bringToFront':
             if (containsCurrentImage) return false;
             canvas.bringToFront(target);
-            keepCurrentImageAtBack();
             return true;
         case 'sendToBack':
             if (containsCurrentImage) return false;
             canvas.sendToBack(target);
-            keepCurrentImageAtBack();
             return true;
         case 'delete':
             if (containsCurrentImage) return false;
