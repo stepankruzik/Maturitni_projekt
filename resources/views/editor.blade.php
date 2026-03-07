@@ -649,7 +649,7 @@
             Kolečko = zoom · Alt / střední tlačítko = posun
         </div>
         <!-- Plovoucí toolbar pro kreslení -->
-        <div id="drawFloatingToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl px-3 py-2.5 z-50 flex gap-3 items-center">
+        <div id="drawFloatingToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl px-3 py-2.5 z-50 flex gap-3 items-center text-slate-900">
             <div class="flex items-center gap-1.5">
                 <label class="text-xs font-medium text-gray-600">Obrys</label>
                 <input id="drawFloatingStrokeColor" type="color" class="h-7 w-9 p-0 rounded border border-gray-300 cursor-pointer hover:border-gray-400 transition">
@@ -684,7 +684,7 @@
                 </select>
             </div>
         </div>
-        <div id="textToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm shadow-xl rounded-xl px-3 py-2 flex items-center gap-2 z-50 border border-gray-200">
+        <div id="textToolbar" class="hidden fixed bg-white/95 backdrop-blur-sm shadow-xl rounded-xl px-3 py-2 flex items-center gap-2 z-50 border border-gray-200 text-slate-900">
             <!-- Styl textu B I U S -->
             <div class="flex gap-1 border-r border-gray-200 pr-2">
                 <button id="tbBold" data-style="bold" class="w-7 h-7 rounded hover:bg-gray-100 active:bg-gray-200 font-bold text-sm transition" title="Tučné">B</button>
@@ -774,7 +774,7 @@
             </button>
         </div>
         <!-- Kontekstové menu pro text -->
-        <div id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
+        <div id="textContextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px] text-slate-900">
             <button class="text-context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="bringForward">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 19V5M5 12l7-7 7 7"/>
@@ -828,7 +828,7 @@
         <canvas id="canvas" class="block" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;"></canvas>
         
         <!-- Kontextové menu -->
-        <div id="contextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px]">
+        <div id="contextMenu" class="hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg py-1 z-50 min-w-[150px] text-slate-900">
             <button class="context-btn w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2" data-action="bringForward">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 19V5M5 12l7-7 7 7"/>
@@ -1867,11 +1867,11 @@ function setDrawMode(newMode, button) {
 }
 
 // Aktualizace viditelnosti a hodnot plovoucího toolbaru
-function updateDrawFloatingToolbarVisibility() {
+function updateDrawFloatingToolbarVisibility(targetOverride = null) {
     const el = document.getElementById('drawFloatingToolbar');
     if (!el) return;
     
-    const activeObj = canvas.getActiveObject();
+    const activeObj = targetOverride || canvas.getActiveObject();
     const hasDrawSelection = activeObj && (activeObj.layer === 'draw' || 
         (activeObj.type === 'activeSelection' && activeObj.getObjects().some(o => o.layer === 'draw')));
     const shouldShow = (drawMode !== null && drawMode !== 'select' && drawMode !== 'textSelect') || 
@@ -1879,9 +1879,12 @@ function updateDrawFloatingToolbarVisibility() {
                        hasDrawSelection;
     
     if (shouldShow) {
-        const rect = canvas.upperCanvasEl.getBoundingClientRect();
-        el.style.left = (rect.left + 12) + 'px';
-        el.style.top = (rect.top + 12) + 'px';
+        if (activeObj && (activeObj.layer === 'draw' || activeObj.type === 'activeSelection')) {
+            positionFixedOverlayNearObject(el, activeObj, { gap: 14 });
+        } else {
+            const rect = canvas.upperCanvasEl.getBoundingClientRect();
+            positionFixedOverlay(el, rect.left + 12, rect.top + 12, 12);
+        }
         el.classList.remove('hidden');
 
         if (activeObj && activeObj.layer === 'draw') {
@@ -3693,10 +3696,17 @@ canvas.on('mouse:up', () => {
 
 // Update size label
 function updateImageSize() {
-    if (!currentImage) return;
+    const imageSizeLabel = document.getElementById('imageSize');
+    if (!imageSizeLabel) return;
+
+    if (!currentImage) {
+        imageSizeLabel.textContent = 'Velikost: —';
+        return;
+    }
+
     const width = Math.round(currentImage.width * currentImage.scaleX);
     const height = Math.round(currentImage.height * currentImage.scaleY);
-    document.getElementById('imageSize').textContent = `Velikost: ${width} × ${height} px`;
+    imageSizeLabel.textContent = `Velikost: ${width} × ${height} px`;
 }
 
 canvas.on('object:modified', () => {
@@ -3711,9 +3721,16 @@ canvas.on('object:modified', () => {
 });
 
 function updateRotationAngle() {
-    if (!currentImage) return;
+    const rotationAngleLabel = document.getElementById('rotationAngle');
+    if (!rotationAngleLabel) return;
+
+    if (!currentImage) {
+        rotationAngleLabel.textContent = 'Otočení: —';
+        return;
+    }
+
     const angle = Math.round(currentImage.angle || 0);
-    document.getElementById('rotationAngle').textContent = `Otočení: ${angle}°`;
+    rotationAngleLabel.textContent = `Otočení: ${angle}°`;
 }
 // aby crop a img nešel mimo canvas
 function keepInsideCanvas(obj) {
@@ -4449,33 +4466,17 @@ document.addEventListener('keydown', (e) => {
             return; // Nemazat objekt, nechat smazat písmeno
         }
 
-        // Hromadné mazání - pokud je vybrána skupina (ActiveSelection)
-        if (activeObj.type === 'activeSelection') {
-            const objectsToRemove = activeObj.getObjects().filter(obj => {
-                // Nikdy nemazat hlavní obrázek
-                if (obj === currentImage) return false;
-                // Nekontrolovat blank, protože hlavní obrázek už je vyfiltrován
-                const isBlank = obj._element?.src?.includes('blank_');
-                return !isBlank;
-            });
-            
-            canvas.discardActiveObject(); // Zrušit výběr
-            objectsToRemove.forEach(obj => canvas.remove(obj));
-            canvas.requestRenderAll();
-            saveHistoryState('delete multiple');
+        if (targetContainsCurrentImage(activeObj)) {
             return;
         }
-        
-        // Mazání jednotlivého objektu
-        // Nikdy nemazat hlavní obrázek
-        if (activeObj === currentImage) return;
 
-        const isBlank = activeObj._element?.src?.includes('blank_');
-        if (!isBlank) {
-            canvas.remove(activeObj);
-            canvas.discardActiveObject();
+        const didRemove = removeCanvasTarget(activeObj);
+        if (didRemove) {
             canvas.requestRenderAll();
-            saveHistoryState('delete');
+            hideContextMenu();
+            hideTextToolbar();
+            updateDrawFloatingToolbarVisibility();
+            saveHistoryState(activeObj.type === 'activeSelection' ? 'delete multiple' : 'delete');
         }
     }
 });
@@ -5052,41 +5053,305 @@ document.addEventListener('click', (e) => {
 });
 
 // ========== KONTEXTOVÉ MENU ==========
+function keepCurrentImageAtBack() {
+    if (!currentImage) return;
+    if (!canvas.getObjects().includes(currentImage)) return;
+    currentImage.sendToBack();
+}
+
+function targetContainsCurrentImage(target) {
+    return !!(target && (
+        target === currentImage ||
+        (target.type === 'activeSelection' && target.getObjects().includes(currentImage))
+    ));
+}
+
+function clearCurrentImageState() {
+    if (cropTargetImage === currentImage) {
+        exitCropMode();
+    }
+
+    if (gridEnabled) {
+        gridEnabled = false;
+        document.getElementById('toggleGridBtn')?.classList.remove('active');
+        removeGrid();
+    }
+
+    currentImage = null;
+    previousAngle = 0;
+    updateImageSize();
+    updateRotationAngle();
+}
+
+function withMeasuredElement(element, callback) {
+    if (!element) return null;
+
+    const wasHidden = element.classList.contains('hidden');
+    const previousVisibility = element.style.visibility;
+
+    if (wasHidden) {
+        element.style.visibility = 'hidden';
+        element.classList.remove('hidden');
+    }
+
+    const rect = element.getBoundingClientRect();
+    const result = callback(rect);
+
+    if (wasHidden) {
+        element.classList.add('hidden');
+    }
+
+    element.style.visibility = previousVisibility;
+    return result;
+}
+
+function getWorkspaceViewportBounds(padding = 12) {
+    const workspaceRect = canvasWorkspace?.getBoundingClientRect();
+
+    return {
+        left: workspaceRect ? Math.max(workspaceRect.left + padding, padding) : padding,
+        top: workspaceRect ? Math.max(workspaceRect.top + padding, padding) : padding,
+        right: workspaceRect ? Math.min(workspaceRect.right - padding, window.innerWidth - padding) : window.innerWidth - padding,
+        bottom: workspaceRect ? Math.min(workspaceRect.bottom - padding, window.innerHeight - padding) : window.innerHeight - padding,
+    };
+}
+
+function clampOverlayPosition(desiredLeft, desiredTop, width, height, padding = 12) {
+    const bounds = getWorkspaceViewportBounds(padding);
+    const maxLeft = Math.max(bounds.left, bounds.right - width);
+    const maxTop = Math.max(bounds.top, bounds.bottom - height);
+
+    return {
+        left: Math.min(Math.max(desiredLeft, bounds.left), maxLeft),
+        top: Math.min(Math.max(desiredTop, bounds.top), maxTop),
+    };
+}
+
+function getObjectViewportBounds(target) {
+    if (!target) return null;
+
+    const canvasRect = canvas.upperCanvasEl.getBoundingClientRect();
+    const viewportTransform = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+    let coords = [];
+
+    try {
+        if (typeof target.calcACoords === 'function') {
+            const absoluteCoords = target.calcACoords();
+            coords = [absoluteCoords.tl, absoluteCoords.tr, absoluteCoords.br, absoluteCoords.bl].filter(Boolean);
+        } else if (typeof target.getCoords === 'function') {
+            coords = target.getCoords();
+        }
+    } catch (err) {
+        coords = [];
+    }
+
+    if (!coords.length) {
+        const targetRect = target.getBoundingRect();
+
+        return {
+            left: canvasRect.left + targetRect.left,
+            top: canvasRect.top + targetRect.top,
+            width: targetRect.width,
+            height: targetRect.height,
+            right: canvasRect.left + targetRect.left + targetRect.width,
+            bottom: canvasRect.top + targetRect.top + targetRect.height,
+            centerX: canvasRect.left + targetRect.left + (targetRect.width / 2),
+        };
+    }
+
+    const viewportPoints = coords.map(function(point) {
+        return fabric.util.transformPoint(new fabric.Point(point.x, point.y), viewportTransform);
+    });
+    const xs = viewportPoints.map(point => point.x);
+    const ys = viewportPoints.map(point => point.y);
+    const left = Math.min(...xs);
+    const right = Math.max(...xs);
+    const top = Math.min(...ys);
+    const bottom = Math.max(...ys);
+
+    return {
+        left: canvasRect.left + left,
+        top: canvasRect.top + top,
+        width: right - left,
+        height: bottom - top,
+        right: canvasRect.left + right,
+        bottom: canvasRect.top + bottom,
+        centerX: canvasRect.left + ((left + right) / 2),
+    };
+}
+
+function positionFixedOverlay(element, desiredLeft, desiredTop, padding = 12) {
+    return withMeasuredElement(element, function(rect) {
+        const clamped = clampOverlayPosition(desiredLeft, desiredTop, rect.width, rect.height, padding);
+        element.style.left = clamped.left + 'px';
+        element.style.top = clamped.top + 'px';
+        return clamped;
+    });
+}
+
+function positionFixedOverlayNearObject(element, target, options = {}) {
+    const objectBounds = getObjectViewportBounds(target);
+    if (!element || !objectBounds) return false;
+
+    const gap = options.gap ?? 12;
+
+    return withMeasuredElement(element, function(rect) {
+        const desiredLeft = objectBounds.centerX - (rect.width / 2);
+        const bounds = getWorkspaceViewportBounds(gap);
+        const fallbackTop = objectBounds.bottom + gap;
+        let desiredTop = objectBounds.top - rect.height - gap;
+
+        if (desiredTop < bounds.top && (fallbackTop + rect.height) <= bounds.bottom) {
+            desiredTop = fallbackTop;
+        }
+
+        const clamped = clampOverlayPosition(desiredLeft, desiredTop, rect.width, rect.height, gap);
+        element.style.left = clamped.left + 'px';
+        element.style.top = clamped.top + 'px';
+        return clamped;
+    });
+}
+
+function positionWorkspaceMenuNearObject(element, target, options = {}) {
+    const workspaceRect = canvasWorkspace?.getBoundingClientRect();
+    const objectBounds = getObjectViewportBounds(target);
+    if (!element || !workspaceRect || !objectBounds) return false;
+
+    const gap = options.gap ?? 10;
+
+    return withMeasuredElement(element, function(rect) {
+        const desiredLeft = objectBounds.centerX - (rect.width / 2);
+        const bounds = getWorkspaceViewportBounds(gap);
+        const fallbackTop = objectBounds.bottom + gap;
+        let desiredTop = objectBounds.top - rect.height - gap;
+
+        if (desiredTop < bounds.top && (fallbackTop + rect.height) <= bounds.bottom) {
+            desiredTop = fallbackTop;
+        }
+
+        const clamped = clampOverlayPosition(desiredLeft, desiredTop, rect.width, rect.height, gap);
+        element.style.left = Math.max(0, clamped.left - workspaceRect.left) + 'px';
+        element.style.top = Math.max(0, clamped.top - workspaceRect.top) + 'px';
+        return clamped;
+    });
+}
+
+function syncContextMenuActionAvailability(target) {
+    if (!contextMenu) return;
+
+    const lockMainImageActions = targetContainsCurrentImage(target);
+
+    contextMenu.querySelectorAll('[data-action="copy"], [data-action="delete"], [data-action="bringForward"], [data-action="sendBackward"], [data-action="bringToFront"], [data-action="sendToBack"]').forEach(function(button) {
+        button.disabled = lockMainImageActions;
+        button.classList.toggle('opacity-50', lockMainImageActions);
+        button.classList.toggle('cursor-not-allowed', lockMainImageActions);
+    });
+}
+
+function cloneObjectToClipboard(target) {
+    if (!target || targetContainsCurrentImage(target)) return;
+
+    target.clone(function(cloned) {
+        cloned.layer = target.layer;
+        cloned.erasable = target.erasable;
+        cloned._originalStroke = target._originalStroke;
+        cloned._originalFill = target._originalFill;
+        clipboard = cloned;
+    }, HISTORY.extraProps);
+}
+
+function removeCanvasTarget(target) {
+    if (!target) return false;
+
+    if (targetContainsCurrentImage(target)) return false;
+
+    if (target.type === 'activeSelection') {
+        const objectsToRemove = target.getObjects().filter(obj => !obj._element?.src?.includes('blank_'));
+        if (!objectsToRemove.length) return false;
+
+        canvas.discardActiveObject();
+        objectsToRemove.forEach(obj => canvas.remove(obj));
+
+        return true;
+    }
+
+    if (target._element?.src?.includes('blank_')) return false;
+
+    canvas.remove(target);
+    canvas.discardActiveObject();
+
+    return true;
+}
+
+function applyContextMenuAction(target, action) {
+    if (!target) return false;
+
+    const containsCurrentImage = targetContainsCurrentImage(target);
+
+    switch (action) {
+        case 'bringForward':
+            if (containsCurrentImage) return false;
+            canvas.bringForward(target);
+            keepCurrentImageAtBack();
+            return true;
+        case 'sendBackward':
+            if (containsCurrentImage) return false;
+            canvas.sendBackwards(target);
+            keepCurrentImageAtBack();
+            return true;
+        case 'bringToFront':
+            if (containsCurrentImage) return false;
+            canvas.bringToFront(target);
+            keepCurrentImageAtBack();
+            return true;
+        case 'sendToBack':
+            if (containsCurrentImage) return false;
+            canvas.sendToBack(target);
+            keepCurrentImageAtBack();
+            return true;
+        case 'delete':
+            if (containsCurrentImage) return false;
+            return removeCanvasTarget(target);
+        case 'copy':
+            if (containsCurrentImage) return false;
+            cloneObjectToClipboard(target);
+            return false;
+        case 'paste':
+            pasteObject();
+            return false;
+        default:
+            return false;
+    }
+}
+
 const contextMenu = document.getElementById('contextMenu');
 let contextTarget = null;
 
 // Zobrazení kontextového menu na pravé tlačítko
 canvas.upperCanvasEl.addEventListener('contextmenu', function(e) {
     e.preventDefault();
+    hideContextMenu();
     
-    const pointer = canvas.getPointer(e);
     const target = canvas.findTarget(e, false);
     
-    if (target && target !== currentImage && !target._element?.src?.includes('blank_')) {
+    if (target && !target._element?.src?.includes('blank_')) {
         contextTarget = target;
         canvas.setActiveObject(target);
         canvas.requestRenderAll();
 
-        const rect = canvas.upperCanvasEl.getBoundingClientRect();
-
         if (target.type === 'i-text' || target.type === 'textbox') {
             const menu = document.getElementById('textContextMenu');
-            // Nejprve zobrazit pro změření výšky
-            menu.style.visibility = 'hidden';
+            positionWorkspaceMenuNearObject(menu, target, { gap: 10 });
             menu.classList.remove('hidden');
-            const menuHeight = menu.offsetHeight;
-            menu.style.visibility = '';
-            
-            // Pozice - menu se otevírá nahoru (nad kurzor)
-            const posX = e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft;
-            const posY = e.clientY - rect.top + canvas.upperCanvasEl.offsetTop - menuHeight;
-            
-            menu.style.left = posX + 'px';
-            menu.style.top = Math.max(0, posY) + 'px';
         } 
-        else if (target.layer === 'draw' || target.layer === 'image' || (target.type === 'activeSelection' && target.getObjects().some(o => o.layer === 'draw' || o.layer === 'image'))) {
-            contextMenu.style.left = (e.clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
-            contextMenu.style.top = (e.clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+        else if (
+            targetContainsCurrentImage(target) ||
+            target.layer === 'draw' ||
+            target.layer === 'image' ||
+            (target.type === 'activeSelection' && target.getObjects().some(o => o.layer === 'draw' || o.layer === 'image' || o === currentImage))
+        ) {
+            syncContextMenuActionAvailability(target);
+            positionWorkspaceMenuNearObject(contextMenu, target, { gap: 10 });
             contextMenu.classList.remove('hidden');
             // Sync hodnoty pro styl čáry
             try { syncDrawContextMenuFromObject(target); } catch (err) {}
@@ -5123,6 +5388,7 @@ function hideContextMenu() {
     const t = document.getElementById('textContextMenu');
     if (t) t.classList.add('hidden');
     contextTarget = null;
+    syncContextMenuActionAvailability(null);
 }
 
 function syncTextContextMenuFromObject(obj) {
@@ -5171,9 +5437,13 @@ function showDrawFloatingAt(clientX, clientY, targetObj) {
     const el = document.getElementById('drawFloatingToolbar');
     if (!el) return;
     drawContextTarget = targetObj;
-    const rect = canvas.upperCanvasEl.getBoundingClientRect();
-    el.style.left = (clientX - rect.left + canvas.upperCanvasEl.offsetLeft) + 'px';
-    el.style.top = (clientY - rect.top + canvas.upperCanvasEl.offsetTop) + 'px';
+
+    if (targetObj) {
+        positionFixedOverlayNearObject(el, targetObj, { gap: 14 });
+    } else {
+        positionFixedOverlay(el, clientX + 12, clientY + 12, 12);
+    }
+
     el.classList.remove('hidden');
 
     try {
@@ -5210,40 +5480,13 @@ if (textContextMenu) {
     // Event handlery pro textové kontextové menu (layer actions)
     document.querySelectorAll('.text-context-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            const target = canvas.getActiveObject();
+            const target = contextTarget || canvas.getActiveObject();
             if (!target) return;
             
             const action = this.dataset.action;
-            
-            switch(action) {
-                case 'bringForward':
-                    canvas.bringForward(target);
-                    break;
-                case 'sendBackward':
-                    canvas.sendBackwards(target);
-                    break;
-                case 'bringToFront':
-                    canvas.bringToFront(target);
-                    break;
-                case 'sendToBack':
-                    canvas.sendToBack(target);
-                    break;
-                case 'delete':
-                    canvas.remove(target);
-                    break;
-                case 'copy':
-                    target.clone(function(cloned) {
-                        cloned.layer = target.layer;
-                        cloned.erasable = target.erasable;
-                        cloned._originalStroke = target._originalStroke;
-                        cloned._originalFill = target._originalFill;
-                        clipboard = cloned;
-                    }, HISTORY.extraProps);
-                    break;
-                case 'paste':
-                    pasteObject();
-                    break;
-            }
+
+            const didChange = applyContextMenuAction(target, action);
+            if (didChange) saveHistoryState(`text-context-${action}`);
             
             canvas.requestRenderAll();
             hideContextMenu();
@@ -5266,16 +5509,9 @@ let clipboard = null;
 
 function copyObject() {
     const obj = canvas.getActiveObject();
-    if (!obj || obj === currentImage) return;
-    
-    obj.clone(function(cloned) {
-        // Preserve custom properties
-        cloned.layer = obj.layer;
-        cloned.erasable = obj.erasable;
-        cloned._originalStroke = obj._originalStroke;
-        cloned._originalFill = obj._originalFill;
-        clipboard = cloned;
-    }, HISTORY.extraProps);
+    if (!obj || targetContainsCurrentImage(obj)) return;
+
+    cloneObjectToClipboard(obj);
 }
 
 function pasteObject() {
@@ -5329,7 +5565,7 @@ document.addEventListener('keydown', function(e) {
     // Ctrl+C - kopírovat
     if (e.ctrlKey && e.key === 'c') {
         const obj = canvas.getActiveObject();
-        if (obj && obj !== currentImage) {
+        if (obj && !targetContainsCurrentImage(obj)) {
             e.preventDefault();
             copyObject();
         }
@@ -5350,41 +5586,9 @@ document.querySelectorAll('.context-btn').forEach(btn => {
         if (!contextTarget) return;
         
         const action = this.dataset.action;
-        
-        switch(action) {
-            case 'bringForward':
-                canvas.bringForward(contextTarget);
-                break;
-            case 'sendBackward':
-                canvas.sendBackwards(contextTarget);
-                break;
-            case 'bringToFront':
-                canvas.bringToFront(contextTarget);
-                break;
-            case 'sendToBack':
-                // Pošli objekt úplně na spodek (i pod obrázek)
-                canvas.sendToBack(contextTarget);
-                break;
-            case 'delete':
-                if (contextTarget !== currentImage) {
-                    canvas.remove(contextTarget);
-                }
-                break;
-            case 'copy':
-                if (contextTarget !== currentImage) {
-                    contextTarget.clone(function(cloned) {
-                        cloned.layer = contextTarget.layer;
-                        cloned.erasable = contextTarget.erasable;
-                        cloned._originalStroke = contextTarget._originalStroke;
-                        cloned._originalFill = contextTarget._originalFill;
-                        clipboard = cloned;
-                    }, HISTORY.extraProps);
-                }
-                break;
-            case 'paste':
-                pasteObject();
-                break;
-        }
+
+        const didChange = applyContextMenuAction(contextTarget, action);
+        if (didChange) saveHistoryState(`context-${action}`);
         
         canvas.requestRenderAll();
         hideContextMenu();
@@ -5662,19 +5866,30 @@ document.getElementById('copyFormatBtn').addEventListener('click', () => {
 const textToolbar = document.getElementById('textToolbar');
 
 function showTextToolbar(textObj) {
-  const rect = textObj.getBoundingRect(true);
-  const canvasRect = canvas.upperCanvasEl.getBoundingClientRect();
+    if (!textToolbar || !textObj) return;
 
-  textToolbar.style.left = canvasRect.left + rect.left + rect.width / 2 - 140 + 'px';
-  textToolbar.style.top  = canvasRect.top + rect.top - 40 + 'px';
-
-  textToolbar.classList.remove('hidden');
+    positionFixedOverlayNearObject(textToolbar, textObj, { gap: 12 });
+    textToolbar.classList.remove('hidden');
     syncTextToolbarFromObject(textObj);
     hideDrawFloatingToolbar();
 }
 
 function hideTextToolbar() {
-  textToolbar.classList.add('hidden');
+    if (!textToolbar) return;
+    textToolbar.classList.add('hidden');
+}
+
+function refreshActiveFloatingOverlayPosition(preferredTarget = null) {
+    const obj = preferredTarget || canvas.getActiveObject();
+
+    if (obj && (obj.type === 'i-text' || obj.type === 'textbox')) {
+        showTextToolbar(obj);
+        return;
+    }
+
+    if (obj && (obj.layer === 'draw' || (obj.type === 'activeSelection' && obj.getObjects().some(o => o.layer === 'draw')))) {
+        updateDrawFloatingToolbarVisibility(obj);
+    }
 }
 
 function getFirstSelectionStyleValue(obj, prop) {
@@ -5840,11 +6055,16 @@ canvas.on('selection:updated', () => {
 
 canvas.on('selection:cleared', hideTextToolbar);
 
-canvas.on('object:moving', () => {
-  const obj = canvas.getActiveObject();
-  if (obj && (obj.type === 'i-text' || obj.type === 'textbox')) {
-    showTextToolbar(obj);
-  }
+canvas.on('object:moving', (event) => {
+    refreshActiveFloatingOverlayPosition(event?.target);
+});
+
+canvas.on('object:scaling', (event) => {
+    refreshActiveFloatingOverlayPosition(event?.target);
+});
+
+canvas.on('object:rotating', (event) => {
+    refreshActiveFloatingOverlayPosition(event?.target);
 });
 
 document.getElementById('textToolbarColor').oninput = (e) => {
@@ -5888,9 +6108,10 @@ document.getElementById('textToolbarColor').oninput = (e) => {
 
 document.getElementById('deleteTextBtn').onclick = () => {
     const obj = canvas.getActiveObject();
-    if (obj) {
-        canvas.remove(obj);
+    if (obj && removeCanvasTarget(obj)) {
+        canvas.requestRenderAll();
         hideTextToolbar();
+        saveHistoryState('delete text');
     }
 };
 
