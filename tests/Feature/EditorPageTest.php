@@ -14,6 +14,8 @@ test('editor page renders canvas and filter section', function () {
     $response->assertSee('Ruční vyladění');
     $response->assertSee('data-target="panelFilters"', false);
     $response->assertSee('id="brightness"', false);
+    $response->assertSee('function createImageRotateCornerControl(', false);
+    $response->assertSee('function applyImageTransformControls(imageObj)', false);
     $response->assertDontSee('data-target="panelLevels"', false);
     $response->assertSee(json_encode(asset('uploads/test.png')), false);
 });

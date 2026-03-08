@@ -1019,6 +1019,11 @@ function cleanupAfterRestore() {
             enableLineEndpointsControls(o);
             o.setCoords();
         }
+
+        if (o.type === 'image') {
+            applyImageTransformControls(o);
+            o.setCoords();
+        }
     });
 
     resetCanvasToWorkspaceSize(false);
@@ -1709,6 +1714,122 @@ function disableAllLineEndpoints() {
         disableLineEndpointsControls(line);
     });
     currentEditingLine = null;
+}
+
+const defaultFabricObjectControls = fabric.Object.prototype.controls || {};
+
+function isBlankImageObject(obj) {
+    const source = obj?._element?.src || obj?._originalElement?.src || '';
+    return source.includes('blank_');
+}
+
+function renderImageRotateControl(ctx, left, top, iconRotation = 0) {
+    ctx.save();
+    ctx.translate(left, top);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 7.2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+    ctx.fill();
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.rotate((iconRotation * Math.PI) / 180);
+
+    const iconRadius = 3.8;
+    const startAngle = Math.PI * 0.18;
+    const endAngle = Math.PI * 1.32;
+
+    const drawArrowHead = (angle, directionAngle) => {
+        const x = Math.cos(angle) * iconRadius;
+        const y = Math.sin(angle) * iconRadius;
+        const headLength = 1.9;
+        const wingAngle = Math.PI / 5;
+
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(
+            x - Math.cos(directionAngle - wingAngle) * headLength,
+            y - Math.sin(directionAngle - wingAngle) * headLength
+        );
+        ctx.moveTo(x, y);
+        ctx.lineTo(
+            x - Math.cos(directionAngle + wingAngle) * headLength,
+            y - Math.sin(directionAngle + wingAngle) * headLength
+        );
+        ctx.stroke();
+    };
+
+    ctx.beginPath();
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 1.55;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.arc(0, 0, iconRadius, startAngle, endAngle);
+    ctx.stroke();
+
+    drawArrowHead(startAngle, startAngle - Math.PI / 2);
+    drawArrowHead(endAngle, endAngle + Math.PI / 2);
+
+    ctx.restore();
+
+    ctx.restore();
+}
+
+function createImageRotateCornerControl(x, y, offsetX, offsetY, iconRotation = 0) {
+    const defaultRotateControl = defaultFabricObjectControls.mtr;
+
+    return new fabric.Control({
+        x,
+        y,
+        offsetX,
+        offsetY,
+        actionHandler: defaultRotateControl?.actionHandler,
+        cursorStyleHandler: defaultRotateControl?.cursorStyleHandler,
+        cursorStyle: 'crosshair',
+        actionName: defaultRotateControl?.actionName || 'rotate',
+        render: function(ctx, left, top) {
+            renderImageRotateControl(ctx, left, top, iconRotation);
+        },
+        withConnection: false,
+        sizeX: 14,
+        sizeY: 14,
+        touchSizeX: 22,
+        touchSizeY: 22,
+    });
+}
+
+function applyImageTransformControls(imageObj) {
+    if (!imageObj || imageObj.type !== 'image' || isBlankImageObject(imageObj)) return;
+
+    imageObj.controls = {
+        tl: defaultFabricObjectControls.tl,
+        tr: defaultFabricObjectControls.tr,
+        bl: defaultFabricObjectControls.bl,
+        br: defaultFabricObjectControls.br,
+        mt: defaultFabricObjectControls.mt,
+        mb: defaultFabricObjectControls.mb,
+        ml: defaultFabricObjectControls.ml,
+        mr: defaultFabricObjectControls.mr,
+        rtl: createImageRotateCornerControl(-0.5, -0.5, -22, -22, 90),
+        rtr: createImageRotateCornerControl(0.5, -0.5, 22, -22, 180),
+        rbr: createImageRotateCornerControl(0.5, 0.5, 22, 22, 270),
+        rbl: createImageRotateCornerControl(-0.5, 0.5, -22, 22, 0),
+    };
+
+    imageObj.set({
+        transparentCorners: false,
+        cornerStyle: 'circle',
+        cornerColor: '#ffffff',
+        cornerStrokeColor: '#2563eb',
+        cornerSize: 12,
+        padding: 4,
+        hasRotatingPoint: false,
+    });
+
+    imageObj.setCoords();
 }
 
 function scheduleFilterHistory() {
@@ -3070,15 +3191,6 @@ canvas.on("object:rotating", function(e) {
     const obj = e.target;
     if (!obj) return;
 
-    const maxW = originalImageWidth;
-    const maxH = originalImageHeight;
-
-    const realW = obj.getScaledWidth();
-    const realH = obj.getScaledHeight();
-
-    if (realW > maxW) obj.scaleX *= maxW / realW;
-    if (realH > maxH) obj.scaleY *= maxH / realH;
-
     obj.setCoords();
     keepInsideCanvas(obj);
     updateImageSize();
@@ -3117,6 +3229,11 @@ img.set({
     hasRotatingPoint: !isBlank,
     cornerStyle: 'circle'
 });
+
+if (!isBlank) {
+    applyImageTransformControls(img);
+}
+
 img.sendToBack(); // Always send background to back
 
 // Skrýt/zobrazit tlačítka mřížky a uzamykání podle typu obrázku
@@ -3851,7 +3968,6 @@ canvas.on('object:modified', () => {
     const angle = currentImage.angle || 0;
     if (angle !== previousAngle) {
         previousAngle = angle;
-        fitObjectToViewport(currentImage);
     }
     updateImageSize();
     updateRotationAngle();
@@ -5886,6 +6002,8 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
                     hasRotatingPoint: true,
                     layer: 'image', // Overlay layer
                 });
+
+	                applyImageTransformControls(fabricImg);
 
                 // Fit into canvas with padding (don't upscale)
                 fitObjectIntoCanvas(fabricImg, 20, false);
