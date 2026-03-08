@@ -140,6 +140,13 @@
         const MAX_WIDTH = 4032;  // Běžná mobilní fotka 12 Mpx
         const MAX_HEIGHT = 3024; // Běžná mobilní fotka 12 Mpx
 
+        function exceedsEditorLimit(width, height) {
+            const longSide = Math.max(width, height);
+            const shortSide = Math.min(width, height);
+
+            return longSide > MAX_WIDTH || shortSide > MAX_HEIGHT;
+        }
+
         function isHeicFile(file) {
             const fileName = (file?.name || '').toLowerCase();
             const fileType = (file?.type || '').toLowerCase();
@@ -245,14 +252,14 @@
             <button type="button" data-width="1080" data-height="1080"
                     class="flex flex-col items-center p-3 bg-blue-500 text-white rounded hover:bg-blue-600 min-w-[100px]">
                 <span class="material-icons text-3xl">photo</span>
-                Instagram Post
+                Instagram příspěvek
                 <small>1080×1080</small>
             </button>
 
             <button type="button" data-width="1080" data-height="1920"
                     class="flex flex-col items-center p-3 bg-blue-500 text-white rounded hover:bg-blue-600 min-w-[100px]">
                 <span class="material-icons text-3xl">slideshow</span>
-                Instagram Story
+                Instagram příběh
                 <small>1080×1920</small>
             </button>
 
@@ -266,21 +273,21 @@
             <button type="button" data-width="1200" data-height="630"
                     class="flex flex-col items-center p-3 bg-blue-500 text-white rounded hover:bg-blue-600 min-w-[100px]">
                 <span class="material-icons text-3xl">facebook</span>
-                Facebook Post
+                Facebook příspěvek
                 <small>1200×630</small>
             </button>
 
             <button type="button" data-width="1280" data-height="720"
                     class="flex flex-col items-center p-3 bg-blue-500 text-white rounded hover:bg-blue-600 min-w-[100px]">
                 <span class="material-icons text-3xl">videocam</span>
-                YouTube Thumbnail
+                Náhled YouTube
                 <small>1280×720</small>
             </button>
 
             <button type="button" data-width="1200" data-height="628"
                     class="flex flex-col items-center p-3 bg-blue-500 text-white rounded hover:bg-blue-600 min-w-[100px]">
                 <span class="material-icons text-3xl">campaign</span>
-                Twitter Post
+                Twitter příspěvek
                 <small>1200×628</small>
             </button>
         </div>
@@ -297,11 +304,11 @@
                 <small>210×297 mm</small>
             </button>
 
-            <button type="button" data-width="3508" data-height="4961"
+            <button type="button" data-width="2550" data-height="3300"
                     class="flex flex-col items-center p-3 bg-green-500 text-white rounded hover:bg-green-600 min-w-[100px]">
                 <span class="material-icons text-3xl">print</span>
-                A3
-                <small>297×420 mm</small>
+                Formát Letter
+                <small>216×279 mm</small>
             </button>
 
             <button type="button" data-width="1748" data-height="2480"
@@ -327,21 +334,21 @@
             <button type="button" data-width="600" data-height="600"
                     class="flex flex-col items-center p-3 bg-yellow-500 text-white rounded hover:bg-yellow-600 min-w-[100px]">
                 <span class="material-icons text-3xl">image</span>
-                Small Photo
+                Malá fotka
                 <small>600×600</small>
             </button>
 
             <button type="button" data-width="300" data-height="300"
                     class="flex flex-col items-center p-3 bg-yellow-500 text-white rounded hover:bg-yellow-600 min-w-[100px]">
                 <span class="material-icons text-3xl">image</span>
-                Thumbnail
+                Miniatura
                 <small>300×300</small>
             </button>
 
             <button type="button" data-width="600" data-height="900"
                     class="flex flex-col items-center p-3 bg-yellow-500 text-white rounded hover:bg-yellow-600 min-w-[100px]">
                 <span class="material-icons text-3xl">image</span>
-                Wallet
+                Peněženková fotka
                 <small>600×900</small>
             </button>
         </div>
@@ -389,6 +396,14 @@
         btn.addEventListener('click', () => {
             const width = parseInt(btn.getAttribute('data-width'));
             const height = parseInt(btn.getAttribute('data-height'));
+            if (exceedsEditorLimit(width, height)) {
+                showToast(
+                    `Šablona má rozlišení ${width}×${height} px, což překračuje limit editoru ${MAX_WIDTH}×${MAX_HEIGHT}.`,
+                    'error',
+                    6000
+                );
+                return;
+            }
 
             createBlankImage(width, height);
         });
@@ -398,6 +413,11 @@
     createBlankBtn.addEventListener('click', () => {
         const width = parseInt(widthInput.value) || 500;
         const height = parseInt(heightInput.value) || 500;
+
+        if (exceedsEditorLimit(width, height)) {
+            showToast(`Rozlišení obrázku je příliš velké. Maximum je ${MAX_WIDTH}×${MAX_HEIGHT} v libovolné orientaci.`, 'error', 5000);
+            return;
+        }
 
         createBlankImage(width, height);
     });
