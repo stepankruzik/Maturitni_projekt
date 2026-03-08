@@ -222,11 +222,11 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Obsah exportu:</label>
                     <div class="flex flex-col gap-2 bg-gray-50 p-3 rounded-md border border-gray-200">
                         <label class="inline-flex items-center">
-                            <input type="radio" name="exportContent" value="canvas" checked class="form-radio text-green-600">
-                            <span class="ml-2 text-sm">Celý Canvas</span>
+                            <input type="radio" name="exportContent" value="canvas"  class="form-radio text-green-600">
+                            <span class="ml-2 text-sm">Aktuální plocha editoru</span>
                         </label>
                         <label class="inline-flex items-center">
-                            <input type="radio" name="exportContent" value="image" class="form-radio text-green-600">
+                            <input type="radio" name="exportContent" value="image" checked class="form-radio text-green-600">
                             <span class="ml-2 text-sm">Jen obrázek</span>
                         </label>
                     </div>
@@ -2883,12 +2883,6 @@ canvas.on('mouse:up', (o) => {
         const objToSelect = lastCreatedObject;
         
         if (objToSelect) {
-            // NEBUDEME nastavovat selectable: true - objekty zůstanou nevybíratelné při kreslení
-            // objToSelect.set({
-            //     selectable: true,
-            //     evented: true
-            // });
-
             // Změnit origin na center pro všechny tvary (kromě čar)
             if (objToSelect.type !== 'line') {
                 const center = objToSelect.getCenterPoint();
@@ -2901,14 +2895,6 @@ canvas.on('mouse:up', (o) => {
                 objToSelect.setCoords();
             }
 
-            // NEBUDEME přepínat na select - zachováme aktivní nástroj
-            // setDrawMode('select', document.getElementById('drawSelectBtn'));
-
-            // NEBUDEME označovat objekt - rovnou kreslíme další
-            // setTimeout(() => {
-            //     canvas.setActiveObject(objToSelect);
-            //     canvas.requestRenderAll();
-            // }, 50);
         }
         
         line = circle = rect = triangle = rightTriangle = ellipse = star = heart = arrow = speechBubble = roundedSpeechBubble = roundedRect = curvedArrow = hexagon = cross = null;
@@ -3032,7 +3018,6 @@ document.getElementById('drawEraserBtn').addEventListener('click', () => {
     canvas.hoverCursor = 'none';
 });
 
-// Update brush/eraser settings when changed
 document.getElementById('brushWidth').addEventListener('input', (e) => {
     if (drawMode === 'brush') {
         canvas.freeDrawingBrush.width = parseInt(e.target.value, 10);
@@ -3145,51 +3130,6 @@ function getDashFromUIForWidth(width) {
     return null;
 }
 
-
-/*
-canvas.on("object:moving", function(e) {
-    if (!e.target) return;
-    keepInsideCanvas(e.target);
-});
-
-canvas.on('object:scaling', function(e) {
-    const obj = e.target;
-    if (!obj) return;
-
-    const canvasWidth = canvas.getWidth();
-    const canvasHeight = canvas.getHeight();
-    const bound = obj.getBoundingRect(false); 
-
-    let newWidth = obj.width * obj.scaleX;
-    let newHeight = obj.height * obj.scaleY;
-
-    if (newWidth > canvasWidth) {
-        obj.scaleX = canvasWidth / obj.width;
-    }
-    if (newHeight > canvasHeight) {
-        obj.scaleY = canvasHeight / obj.height;
-    }
-
-    if (obj === currentImage) {
-        if (obj.width * obj.scaleX > originalImageWidth)
-            obj.scaleX = originalImageWidth / obj.width;
-        if (obj.height * obj.scaleY > originalImageHeight)
-            obj.scaleY = originalImageHeight / obj.height;
-
-    } else if (obj === cropRect) {
-        if (obj.width * obj.scaleX > originalCropWidth)
-            obj.scaleX = originalCropWidth / obj.width;
-        if (obj.height * obj.scaleY > originalCropHeight)
-            obj.scaleY = originalCropHeight / obj.height;
-    }
-
-    keepInsideCanvas(obj);
-
-    obj.setCoords();
-});
-
-*/
-
 canvas.on("object:rotating", function(e) {
     const obj = e.target;
     if (!obj) return;
@@ -3214,7 +3154,7 @@ function loadImage(url) {
         if (currentImage) canvas.remove(currentImage);
 
         currentImage = img;
-        img.layer = 'background'; // Main loaded image is background layer
+        img.layer = 'background';
         originalImageWidth = img.width;
         originalImageHeight = img.height;
 
@@ -3237,7 +3177,7 @@ if (!isBlank) {
     applyImageTransformControls(img);
 }
 
-img.sendToBack(); // Always send background to back
+img.sendToBack();
 
 // Skrýt/zobrazit tlačítka mřížky a uzamykání podle typu obrázku
 document.getElementById('toggleGridBtn').style.display = isBlank ? 'none' : '';
@@ -3915,30 +3855,6 @@ document.querySelectorAll('.filter-thumb-wrap').forEach(wrap => {
     });
 });
 
-document.querySelectorAll('.filter-thumb').forEach(thumb => {
-    thumb.addEventListener('click', () => {
-        document.querySelectorAll('.filter-thumb').forEach(t => t.classList.remove('active'));
-        thumb.classList.add('active');
-
-        const type = thumb.getAttribute('data-filter');
-        switch(type){
-            case 'grayscale': activeFilter = new fabric.Image.filters.Grayscale(); break;
-            case 'sepia': activeFilter = new fabric.Image.filters.Sepia(); break;
-            case 'invert': activeFilter = new fabric.Image.filters.Invert(); break;
-            case 'blur': activeFilter = new fabric.Image.filters.Blur({ blur: 0.3 }); break;
-            case 'sharpen': activeFilter = new fabric.Image.filters.Convolute({ matrix: [0, -1, 0, -1, 5, -1, 0, -1, 0] }); break;
-            default: activeFilter = null; break;
-        }
-
-        applyFilters();
-        scheduleFilterHistory();
-    });
-});
-
-document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
-    input.addEventListener('input', applyFilters);
-});
-
 // Checkboxy pro vrstvy filtrů
 document.querySelectorAll('.filterLayerCheck').forEach(checkbox => {
     checkbox.addEventListener('change', applyFilters);
@@ -3948,32 +3864,6 @@ document.querySelectorAll('.filterLayerCheck').forEach(checkbox => {
 document.querySelectorAll('#brightness, #contrast, #saturation').forEach(input => {
     input.addEventListener('input', () => { applyFilters(); scheduleFilterHistory(); });
 });
-
-// Drag / Pan
-/*let isDragging=false, lastPosX, lastPosY;
-canvas.on('mouse:down', opt => {
-    const evt = opt.e;
-    if (evt.altKey) {
-        isDragging = true;
-        canvas.selection = false;
-        lastPosX = evt.clientX;
-        lastPosY = evt.clientY;
-    }
-});
-canvas.on('mouse:move', opt => {
-    if (!isDragging) return;
-    const e = opt.e;
-    const vpt = canvas.viewportTransform;
-    vpt[4] += e.clientX - lastPosX;
-    vpt[5] += e.clientY - lastPosY;
-    canvas.requestRenderAll();
-    lastPosX = e.clientX;
-    lastPosY = e.clientY;
-});
-canvas.on('mouse:up', () => {
-    isDragging = false;
-    canvas.selection = true;
-});*/
 
 // Update size label
 function updateImageSize() {
@@ -4142,34 +4032,28 @@ function getStrokeColor() {
     return document.getElementById('drawColor').value;
 }
 
-// Helper: clamp value between min and max
 function clamp(v, min, max) {
     return Math.min(Math.max(v, min), max);
 }
 
-// Helper: fit object into canvas with padding (for overlay images)
 function fitObjectIntoCanvas(obj, padding = 20, allowUpscale = false) {
     if (!obj) return;
 
     const canvasW = canvas.width;
     const canvasH = canvas.height;
 
-    // Get object dimensions
     const objW = obj.width * obj.scaleX;
     const objH = obj.height * obj.scaleY;
 
-    // Calculate scale to fit within canvas with padding
     const maxW = canvasW - padding * 2;
     const maxH = canvasH - padding * 2;
 
     let scale = Math.min(maxW / objW, maxH / objH);
 
-    // Don't upscale if not allowed
     if (!allowUpscale && scale > 1) {
         scale = 1;
     }
 
-    // Apply uniform scale
     obj.set({
         scaleX: obj.scaleX * scale,
         scaleY: obj.scaleY * scale,
@@ -4182,7 +4066,6 @@ function fitObjectIntoCanvas(obj, padding = 20, allowUpscale = false) {
     obj.setCoords();
 }
 
-// Helper: check if ANY checkbox with given class is checked (for layer visibility)
 function anyChecked(selectorClass) {
     const checkboxes = document.querySelectorAll(`.${selectorClass}`);
     for (let cb of checkboxes) {
@@ -4798,16 +4681,12 @@ canvas.on('selection:created', handleSelectionChange);
 canvas.on('selection:updated', handleSelectionChange);
 canvas.on('selection:cleared', handleSelectionChange);
 
-// Double-click on overlay image to set as base image
 canvas.on('mouse:dblclick', function(opt) {
     const target = opt.target;
 
-    // Only works on overlay images (not already background)
     if (!target || target.type !== 'image' || target.layer !== 'image') return;
 
-    // Swap with currentImage
     if (currentImage && currentImage !== target) {
-        // Set old background as overlay
         currentImage.layer = 'image';
         currentImage.set({
             selectable: true,
@@ -4815,11 +4694,10 @@ canvas.on('mouse:dblclick', function(opt) {
         });
     }
 
-    // Set clicked overlay as new background
     target.layer = 'background';
     currentImage = target;
 
-    // Send to back
+    // poslat dozadu
     currentImage.sendToBack();
 
     // Update UI
@@ -5790,7 +5668,6 @@ function pasteObject() {
     clipboard.clone(function(clonedObj) {
         canvas.discardActiveObject();
         
-        // Preserve custom properties from clipboard
         clonedObj.layer = clipboard.layer;
         clonedObj.erasable = clipboard.erasable;
         clonedObj._originalStroke = clipboard._originalStroke;
@@ -5806,7 +5683,6 @@ function pasteObject() {
         if (clonedObj.type === 'activeSelection') {
             clonedObj.canvas = canvas;
             clonedObj.forEachObject(function(obj, i) {
-                // Copy layer from original objects if available
                 if (clipboard._objects && clipboard._objects[i]) {
                     obj.layer = clipboard._objects[i].layer;
                     obj.erasable = clipboard._objects[i].erasable;
@@ -5825,7 +5701,6 @@ function pasteObject() {
         canvas.setActiveObject(clonedObj);
         canvas.requestRenderAll();
         saveHistoryState('paste');
-        // Reapply filters to include pasted object
         applyFilters();
     }, HISTORY.extraProps);
 }
@@ -6028,7 +5903,6 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
 
             // Všechny validace prošly - načti obrázek jako overlay
             fabric.Image.fromURL(evt.target.result, function(fabricImg) {
-                // Set as overlay image (not background)
                 fabricImg.set({
                     originX: 'center',
                     originY: 'center',
@@ -6038,12 +5912,11 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
                     evented: true,
                     cornerStyle: 'circle',
                     hasRotatingPoint: true,
-                    layer: 'image', // Overlay layer
+                    layer: 'image',
                 });
 
 	                applyImageTransformControls(fabricImg);
 
-                // Fit into canvas with padding (don't upscale)
                 fitObjectIntoCanvas(fabricImg, 20, false);
 
                 canvas.add(fabricImg);
@@ -6111,7 +5984,6 @@ document.getElementById('copyFormatBtn').addEventListener('click', () => {
     if (!activeObject) return;
 
     if (isFormatPainterActive) {
-        // Cancel the mode
         isFormatPainterActive = false;
         formatClipboard = null;
         canvas.defaultCursor = 'default';

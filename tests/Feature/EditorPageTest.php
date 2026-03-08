@@ -36,10 +36,21 @@ test('home page uses updated upload dimension limit', function () {
     $response->assertSee('const SERVER_MAX_FILE_SIZE =', false);
     $response->assertSee('const MAX_WIDTH = 4032;', false);
     $response->assertSee('const MAX_HEIGHT = 3024;', false);
+    $response->assertSee('function exceedsEditorLimit(width, height)', false);
     $response->assertSee('function isHeicFile(file)', false);
     $response->assertSee('const longSide = Math.max(img.width, img.height);', false);
     $response->assertSee('const shortSide = Math.min(img.width, img.height);', false);
     $response->assertSee('Soubor je příliš velký pro aktuální nastavení serveru', false);
+    $response->assertSee('Formát Letter', false);
+    $response->assertSee('216×279 mm', false);
+    $response->assertSee('Malá fotka', false);
+    $response->assertSee('Miniatura', false);
+    $response->assertSee('Peněženková fotka', false);
+    $response->assertDontSee('Small Photo', false);
+    $response->assertDontSee('Thumbnail', false);
+    $response->assertDontSee('Wallet', false);
+    $response->assertDontSee('nad limitem editoru', false);
+    $response->assertDontSee('A3', false);
 });
 
 test('upload accepts 4032x3024 image in both orientations', function () {
