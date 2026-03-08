@@ -9,7 +9,34 @@ class ImageController extends Controller
 public function upload(Request $request)
 {
     $request->validate([
-        'image' => 'required|mimes:jpeg,jpg,png,gif,bmp,webp,heic,heif|max:51200|dimensions:max_width=8000,max_height=8000', // max 50MB, max rozměry 8000x8000 (pokryje i A3), včetně HEIC
+        'image' => [
+            'required',
+            'file',
+            'mimes:jpeg,jpg,png,gif,bmp,webp',
+            'max:51200',
+            function ($attribute, $value, $fail) {
+                $size = @getimagesize($value->getPathname());
+
+                if (!$size) {
+                    $fail('Nelze načíst rozlišení obrázku. Zkuste jiný soubor.');
+                    return;
+                }
+
+                [$width, $height] = $size;
+                $longSide = max($width, $height);
+                $shortSide = min($width, $height);
+
+                if ($longSide > 4032 || $shortSide > 3024) {
+                    $fail('Rozlišení obrázku je příliš velké. Maximum je 4032×3024 v libovolné orientaci.');
+                }
+            },
+        ], // max 50MB, běžná mobilní fotka 12 Mpx, včetně HEIC
+    ], [
+        'image.required' => 'Vyber obrázek, který chceš nahrát.',
+        'image.file' => 'Vybraný soubor se nepodařilo přečíst jako soubor.',
+        'image.uploaded' => 'Soubor se nepodařilo nahrát na server. Aktuální PHP limit uploadu je ' . ini_get('upload_max_filesize') . '.',
+        'image.mimes' => 'Povolené formáty jsou JPG, PNG, GIF, BMP a WebP. HEIC/HEIF tato verze editoru zatím nepodporuje.',
+        'image.max' => 'Soubor je příliš velký. Maximum aplikace je 50 MB.',
     ]);
 
     $file = $request->file('image');

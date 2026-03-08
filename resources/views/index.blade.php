@@ -10,7 +10,7 @@
     <div class="max-w-2xl mx-auto mt-12">
         <form id="uploadForm" action="{{ route('upload') }}" method="POST" enctype="multipart/form-data" class="hidden">
             @csrf
-            <input id="fileInput" type="file" name="image" accept="image/*,image/heic,image/heif,.heic,.heif">
+            <input id="fileInput" type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,image/jpeg,image/png,image/gif,image/bmp,image/webp">
         </form>
 
         <div id="dropZone"
@@ -47,6 +47,33 @@
             </div>
         </div>
     </div>
+
+    @php
+        $parseIniSizeToBytes = function ($value) {
+            $value = trim((string) $value);
+
+            if ($value === '') {
+                return 0;
+            }
+
+            $unit = strtolower(substr($value, -1));
+            $number = (float) $value;
+
+            return match ($unit) {
+                'g' => (int) ($number * 1024 * 1024 * 1024),
+                'm' => (int) ($number * 1024 * 1024),
+                'k' => (int) ($number * 1024),
+                default => (int) $number,
+            };
+        };
+
+        $phpUploadMaxRaw = ini_get('upload_max_filesize');
+        $phpPostMaxRaw = ini_get('post_max_size');
+        $phpUploadMaxBytes = $parseIniSizeToBytes($phpUploadMaxRaw);
+        $phpPostMaxBytes = $parseIniSizeToBytes($phpPostMaxRaw);
+        $serverUploadLimitBytes = min($phpUploadMaxBytes, $phpPostMaxBytes);
+        $serverUploadLimitLabel = $phpUploadMaxBytes <= $phpPostMaxBytes ? $phpUploadMaxRaw : $phpPostMaxRaw;
+    @endphp
 
     <script>
         // Toast notifikační systém
@@ -107,16 +134,38 @@
         document.head.appendChild(style);
         
         // Validace a upload
-        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
-        const MAX_WIDTH = 4000;  // Přesně 4K
-        const MAX_HEIGHT = 2250; // Přesně 4K
+        const APP_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+        const SERVER_MAX_FILE_SIZE = {{ $serverUploadLimitBytes }};
+        const SERVER_MAX_FILE_SIZE_LABEL = @json($serverUploadLimitLabel);
+        const MAX_WIDTH = 4032;  // Běžná mobilní fotka 12 Mpx
+        const MAX_HEIGHT = 3024; // Běžná mobilní fotka 12 Mpx
+
+        function isHeicFile(file) {
+            const fileName = (file?.name || '').toLowerCase();
+            const fileType = (file?.type || '').toLowerCase();
+
+            return fileName.endsWith('.heic') ||
+                fileName.endsWith('.heif') ||
+                fileType.includes('heic') ||
+                fileType.includes('heif');
+        }
 
         function validateAndUploadFile(file) {
             if (!file) return;
 
+            if (isHeicFile(file)) {
+                showToast('HEIC/HEIF tato verze editoru zatím nepodporuje. Převeď obrázek na JPG, PNG nebo WebP.', 'error', 7000);
+                return;
+            }
+
             // Validace velikosti
-            if (file.size > MAX_FILE_SIZE) {
+            if (file.size > APP_MAX_FILE_SIZE) {
                 showToast(`Soubor je příliš velký (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum je 50 MB.`, 'error', 5000);
+                return;
+            }
+
+            if (file.size > SERVER_MAX_FILE_SIZE) {
+                showToast(`Soubor je příliš velký pro aktuální nastavení serveru (${(file.size / 1024 / 1024).toFixed(1)} MB). Server teď povoluje jen ${SERVER_MAX_FILE_SIZE_LABEL}.`, 'error', 7000);
                 return;
             }
 
@@ -125,8 +174,11 @@
             reader.onload = function(evt) {
                 const img = new Image();
                 img.onload = function() {
-                    if (img.width > MAX_WIDTH || img.height > MAX_HEIGHT) {
-                        showToast(`Rozlišení je příliš velké (${img.width}×${img.height}). Maximum je 4K (4000×2250).`, 'error', 5000);
+                    const longSide = Math.max(img.width, img.height);
+                    const shortSide = Math.min(img.width, img.height);
+
+                    if (longSide > MAX_WIDTH || shortSide > MAX_HEIGHT) {
+                        showToast(`Rozlišení je příliš velké (${img.width}×${img.height}). Maximum je ${MAX_WIDTH}×${MAX_HEIGHT} v libovolné orientaci.`, 'error', 5000);
                         return;
                     }
                     
@@ -143,6 +195,9 @@
                     showToast('Nelze načíst obrázek. Zkuste jiný soubor.', 'error');
                 };
                 img.src = evt.target.result;
+            };
+            reader.onerror = function() {
+                showToast('Chyba při čtení souboru. Zkuste znovu.', 'error');
             };
             reader.readAsDataURL(file);
         }
@@ -174,6 +229,11 @@
             validateAndUploadFile(fileInput.files[0]);
         });
     </script>
+    @if ($errors->any())
+        <script>
+            showToast(@json($errors->first('image')), 'error', 6000);
+        </script>
+    @endif
 <!-- Šablony prázdného plátna -->
 <div class="max-w-2xl mx-auto mt-6 space-y-6 text-center">
     <p class="font-semibold text-lg">Šablony plátna</p>

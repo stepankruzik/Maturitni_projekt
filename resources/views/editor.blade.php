@@ -29,7 +29,7 @@
             </svg>
             Obrázek
         </button>
-        <input type="file" id="addImageInput" accept="image/*" class="hidden">
+        <input type="file" id="addImageInput" accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,image/jpeg,image/png,image/gif,image/bmp,image/webp" class="hidden">
     </div>
 
     <div class="flex flex-col gap-4 lg:min-h-[calc(100vh-10rem)] lg:flex-row">
@@ -895,6 +895,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script>
+const FABRIC_FILTER_TEXTURE_SIZE = 4096;
+fabric.textureSize = FABRIC_FILTER_TEXTURE_SIZE;
+
 const canvas = new fabric.Canvas('canvas', {
     preserveObjectStacking: true  // Zachová pořadí vrstev při výběru objektu
 });
@@ -3816,13 +3819,36 @@ function rgbToHex(r, g, b) {
 }
 
 // Generování dynamických náhledů filtrů z aktuálního obrázku
+function createFilterPreviewSource(sourceEl, width, height) {
+    const previewSource = document.createElement('canvas');
+    previewSource.width = width;
+    previewSource.height = height;
+
+    const previewSourceCtx = previewSource.getContext('2d');
+    if (!previewSourceCtx) return null;
+
+    previewSourceCtx.imageSmoothingEnabled = true;
+    previewSourceCtx.imageSmoothingQuality = 'high';
+    previewSourceCtx.drawImage(sourceEl, 0, 0, width, height);
+
+    return previewSource;
+}
+
 function generateFilterPreviews() {
     if (!currentImage || !currentImage._element) return;
     
     const sourceEl = currentImage._element;
-    const previewHeight = 60;
-    const aspectRatio = sourceEl.naturalWidth / sourceEl.naturalHeight;
-    const previewWidth = Math.round(previewHeight * aspectRatio);
+    const sourceWidth = sourceEl.naturalWidth || sourceEl.width;
+    const sourceHeight = sourceEl.naturalHeight || sourceEl.height;
+    if (!sourceWidth || !sourceHeight) return;
+
+    const maxPreviewWidth = 100;
+    const maxPreviewHeight = 75;
+    const previewScale = Math.min(maxPreviewWidth / sourceWidth, maxPreviewHeight / sourceHeight, 1);
+    const previewWidth = Math.max(1, Math.round(sourceWidth * previewScale));
+    const previewHeight = Math.max(1, Math.round(sourceHeight * previewScale));
+    const basePreviewSource = createFilterPreviewSource(sourceEl, previewWidth, previewHeight);
+    if (!basePreviewSource) return;
     
     const filterTypes = {
         'original': null,
@@ -3840,13 +3866,16 @@ function generateFilterPreviews() {
         
         previewCanvas.width = previewWidth;
         previewCanvas.height = previewHeight;
+        previewCanvas.style.width = `${previewWidth}px`;
+        previewCanvas.style.height = `${previewHeight}px`;
+
+        const previewSource = createFilterPreviewSource(basePreviewSource, previewWidth, previewHeight);
+        if (!previewSource) return;
         
-        // Vytvořit dočasný fabric canvas pro náhled
-        const tempFabricImg = new fabric.Image(sourceEl, {
+        // Vytvořit dočasný fabric image už ze zmenšené kopie, ne z plného originálu
+        const tempFabricImg = new fabric.Image(previewSource, {
             left: 0,
             top: 0,
-            scaleX: previewWidth / sourceEl.naturalWidth,
-            scaleY: previewHeight / sourceEl.naturalHeight
         });
         
         if (filterTypes[filterName]) {
@@ -3855,15 +3884,13 @@ function generateFilterPreviews() {
         }
         
         const ctx = previewCanvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.clearRect(0, 0, previewWidth, previewHeight);
-        
-        // Render na canvas
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = previewWidth;
-        tempCanvas.height = previewHeight;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempFabricImg.render(tempCtx);
-        ctx.drawImage(tempCanvas, 0, 0);
+
+        tempFabricImg.render(ctx);
     });
 }
 
@@ -5960,6 +5987,15 @@ document.getElementById('addImageBtn').addEventListener('click', () => {
 document.getElementById('addImageInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
+
+    const fileName = (file.name || '').toLowerCase();
+    const fileType = (file.type || '').toLowerCase();
+
+    if (fileName.endsWith('.heic') || fileName.endsWith('.heif') || fileType.includes('heic') || fileType.includes('heif')) {
+        showToast('HEIC/HEIF tato verze editoru zatím nepodporuje. Převeď obrázek na JPG, PNG nebo WebP.', 'error', 7000);
+        e.target.value = '';
+        return;
+    }
     
     // Validace velikosti souboru (max 50 MB)
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -5974,13 +6010,15 @@ document.getElementById('addImageInput').addEventListener('change', function(e) 
         // Vytvoř dočasný Image element pro zjištění rozlišení
         const img = new Image();
         img.onload = function() {
-            // Validace rozlišení (max 4K: 4000x2250)
-            const MAX_WIDTH = 4000;  // Přesně 4K
-            const MAX_HEIGHT = 2250; // Přesně 4K
+            // Validace rozlišení (běžná mobilní fotka 12 Mpx)
+            const MAX_WIDTH = 4032;
+            const MAX_HEIGHT = 3024;
+            const longSide = Math.max(img.width, img.height);
+            const shortSide = Math.min(img.width, img.height);
 
-            if (img.width > MAX_WIDTH || img.height > MAX_HEIGHT) {
+            if (longSide > MAX_WIDTH || shortSide > MAX_HEIGHT) {
                 showToast(
-                    `Rozlišení je příliš velké (${img.width}×${img.height}). Maximum je 4K (4000×2250).`,
+                    `Rozlišení je příliš velké (${img.width}×${img.height}). Maximum je ${MAX_WIDTH}×${MAX_HEIGHT} v libovolné orientaci.`,
                     'error',
                     5000
                 );
