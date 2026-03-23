@@ -6,7 +6,7 @@ use App\Http\Controllers\ImageController;
 use Illuminate\Http\Request;
 
 
-Route::get('/', [ProjectController::class, 'index'])->name('home');
+Route::get('/', [ProjectController::class, 'index'])->name('home'); 
 Route::post('/upload', [ImageController::class, 'upload'])->name('upload');
 
 Route::get('/editor', function() {

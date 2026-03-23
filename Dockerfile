@@ -40,4 +40,4 @@ RUN chown -R www-data:www-data storage bootstrap/cache database \
  && chmod -R 775 storage bootstrap/cache database || true
 
 EXPOSE 80
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
+CMD ["php", "-d", "upload_max_filesize=50M", "-d", "post_max_size=50M", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
