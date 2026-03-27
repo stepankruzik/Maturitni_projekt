@@ -1,4 +1,4 @@
-# Web Image Editor
+# Editor fotek
 
 Webová aplikace pro úpravu obrázků přímo v prohlížeči.
 
