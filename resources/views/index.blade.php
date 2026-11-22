@@ -1,6 +1,13 @@
-<x-layout>
+<x-layout
+    :heading="$toolConfig['h1']"
+    :description="$toolConfig['description']"
+    :seo-title="$toolConfig['title']"
+    :meta-description="$toolConfig['description']"
+    :canonical-url="route('tool.show', ['tool' => $tool])"
+    :json-ld="$structuredData"
+>
     <x-slot:heading>
-        Editor fotek
+        {{ $toolConfig['h1'] }}
     </x-slot:heading>
 
     <!-- Toast notifikace -->
@@ -10,6 +17,7 @@
     <div class="max-w-2xl mx-auto mt-12">
         <form id="uploadForm" action="{{ route('upload') }}" method="POST" enctype="multipart/form-data" class="hidden">
             @csrf
+            <input type="hidden" name="tool" value="{{ $tool }}">
             <input id="fileInput" type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,image/jpeg,image/png,image/gif,image/bmp,image/webp">
         </form>
 
@@ -327,6 +335,19 @@
         </div>
     </div>
 
+    <!-- Průkazová fotografie -->
+    <div>
+        <p class="font-semibold text-md mb-2">Průkazové fotografie</p>
+        <div class="flex flex-wrap justify-center gap-4">
+            <button type="button" data-width="413" data-height="531" data-tool="prukazova-fotka"
+                    class="flex flex-col items-center p-3 bg-sky-600 text-white rounded hover:bg-sky-700 min-w-[100px]">
+                <span class="material-icons text-3xl">badge</span>
+                Průkazová fotka
+                <small>35×45 mm / 300 DPI</small>
+            </button>
+        </div>
+    </div>
+
     <!-- Malé fotky -->
     <div>
         <p class="font-semibold text-md mb-2">Malé fotky</p>
@@ -396,6 +417,12 @@
         btn.addEventListener('click', () => {
             const width = parseInt(btn.getAttribute('data-width'));
             const height = parseInt(btn.getAttribute('data-height'));
+            const tool = btn.getAttribute('data-tool');
+
+            if (tool) {
+                const toolInput = document.querySelector('#uploadForm input[name="tool"]');
+                if (toolInput) toolInput.value = tool;
+            }
             if (exceedsEditorLimit(width, height)) {
                 showToast(
                     `Šablona má rozlišení ${width}×${height} px, což překračuje limit editoru ${MAX_WIDTH}×${MAX_HEIGHT}.`,

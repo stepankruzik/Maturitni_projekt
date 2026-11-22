@@ -39,13 +39,20 @@ public function upload(Request $request)
         'image.max' => 'Soubor je příliš velký. Maximum aplikace je 50 MB.',
     ]);
 
+    $tool = $request->input('tool', 'editor');
+
+    abort_unless(isset(config('tools')[$tool]), 404);
+
     $file = $request->file('image');
     $filename = uniqid() . '.' . $file->getClientOriginalExtension();
 
     // uložíme rovnou do public/uploads
     $file->move(public_path('uploads'), $filename);
 
-    return redirect()->route('editor', ['path' => 'uploads/' . $filename]);
+    return redirect()->route('tool.show', [
+        'tool' => $tool,
+        'path' => 'uploads/' . $filename,
+    ]);
 }
 
 public function store(Request $request)

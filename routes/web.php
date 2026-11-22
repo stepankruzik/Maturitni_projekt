@@ -3,15 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ImageController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\ToolController;
 
-
-Route::get('/', [ProjectController::class, 'index'])->name('home'); 
+Route::get('/', [ProjectController::class, 'index'])->name('home');
 Route::post('/upload', [ImageController::class, 'upload'])->name('upload');
 
-Route::get('/editor', function() {
-    $path = request()->get('path');
-    $imagePath = $path ? asset($path) : null; 
-    return view('editor', compact('imagePath'));
-})->name('editor');
-Route::post('/save-image', [ImageController::class, 'store']); //uložení na server
+Route::get('/editor', [ToolController::class, 'show'])->name('editor');
+Route::get('/{tool}', [ToolController::class, 'show'])
+    ->whereIn('tool', array_keys(config('tools')))
+    ->name('tool.show');
+Route::post('/save-image', [ImageController::class, 'store']);
